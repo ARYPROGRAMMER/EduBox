@@ -88,10 +88,10 @@ export function LandingPage() {
                 <HoverBorderGradient
                   containerClassName="rounded-full"
                   as="button"
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 bg-background/80 backdrop-blur-sm"
                 >
                   <EduboxLogo />
-                  <span> Introducing EduBox v1.0</span>
+                  <span > Introducing EduBox v1.0</span>
                 </HoverBorderGradient>
               </div>
             </motion.div>
@@ -111,7 +111,7 @@ export function LandingPage() {
                 </Highlight>
               </motion.h1>
 
-              <motion.p
+              <motion.div
                 className="text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mt-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -124,31 +124,68 @@ export function LandingPage() {
                   academic
                 </PointerHighlight>{" "}
                 success.
-              </motion.p>
+              </motion.div>
 
-              {/* group wrapper so pointer-highlight responds to input focus and hover */}
-              <div className="group relative mt-10">
-                {/* Wrap the form and button together */}
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
-                  <YoutubeVideoForm />
+              <motion.div 
+                className="group relative mt-12"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.8 }}
+              >
+                <div className="flex flex-col items-center gap-6">
+            
+                  
+                  <motion.div
+                    className="w-full max-w-2xl"
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 1.0, duration: 0.3 }}
+                  >
+                    <YoutubeVideoForm />
+                  </motion.div>
+                  
+                  <motion.div 
+                    className="flex flex-wrap justify-center items-center gap-4 text-xs text-muted-foreground/60"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.1, duration: 0.5 }}
+                  >
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
+                      ✨ AI-powered analysis
+                    </span>
+                    <span className="w-1 h-1 bg-muted-foreground/30 rounded-full hidden sm:block"></span>
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
+                      📝 Interactive notes
+                    </span>
+                    <span className="w-1 h-1 bg-muted-foreground/30 rounded-full hidden sm:block"></span>
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
+                      🤖 Smart chat assistant
+                    </span>
+                  </motion.div>
                 </div>
-              </div>
+              </motion.div>
             </HeroHighlight>
           </motion.div>
         </div>
 
         {/* Enhanced background gradients with parallax */}
         <motion.div
-          className="absolute top-20 left-10 opacity-15"
+          className="absolute top-1/4 left-10 opacity-20"
           style={{ y: backgroundY }}
         >
-          <div className="w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full blur-3xl"></div>
+          <div className="w-96 h-96 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-3xl"></div>
         </motion.div>
         <motion.div
-          className="absolute bottom-20 right-10 opacity-15"
+          className="absolute bottom-1/4 right-10 opacity-20"
           style={{ y: backgroundY }}
         >
-          <div className="w-96 h-96 bg-gradient-to-r from-green-400 to-blue-600 rounded-full blur-3xl"></div>
+          <div className="w-80 h-80 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 rounded-full blur-3xl"></div>
+        </motion.div>
+        <motion.div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10"
+          style={{ y: backgroundY }}
+        >
+          <div className="w-[600px] h-[600px] bg-gradient-to-r from-orange-400 via-pink-500 to-red-500 rounded-full blur-3xl"></div>
         </motion.div>
       </section>
 

@@ -8,10 +8,12 @@ export function PlaceholdersAndVanishInput({
   placeholders,
   onChange,
   onSubmit,
+  disabled = false,
 }: {
   placeholders: string[];
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  disabled?: boolean;
 }) {
   const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
 
@@ -150,7 +152,7 @@ export function PlaceholdersAndVanishInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !animating) {
+    if (e.key === "Enter" && !animating && !disabled) {
       vanishAndSubmit();
     }
   };
@@ -191,7 +193,7 @@ export function PlaceholdersAndVanishInput({
       />
       <input
         onChange={(e) => {
-          if (!animating) {
+          if (!animating && !disabled) {
             setValue(e.target.value);
             onChange && onChange(e);
           }
@@ -200,16 +202,22 @@ export function PlaceholdersAndVanishInput({
         ref={inputRef}
         value={value}
         type="text"
+        disabled={disabled}
         className={cn(
           "w-full relative text-sm sm:text-base z-50 border-none dark:text-white bg-transparent text-black h-full rounded-full focus:outline-none focus:ring-0 pl-4 sm:pl-10 pr-20",
-          animating && "text-transparent dark:text-transparent"
+          animating && "text-transparent dark:text-transparent",
+          disabled && "opacity-50 cursor-not-allowed"
         )}
       />
 
       <button
-        disabled={!value}
+        disabled={!value || disabled}
         type="submit"
-        className="absolute right-2 top-1/2 z-50 -translate-y-1/2 h-8 w-8 rounded-full disabled:bg-gray-100 bg-black dark:bg-zinc-900 dark:disabled:bg-zinc-800 transition duration-200 flex items-center justify-center"
+        className={cn(
+          "absolute right-2 top-1/2 z-50 -translate-y-1/2 h-8 w-8 rounded-full transition duration-200 flex items-center justify-center",
+          "disabled:bg-gray-100 bg-black dark:bg-zinc-900 dark:disabled:bg-zinc-800",
+          disabled && "opacity-50 cursor-not-allowed"
+        )}
       >
         <motion.svg
           xmlns="http://www.w3.org/2000/svg"
