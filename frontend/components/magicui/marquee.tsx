@@ -1,5 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/utils";
-import { ComponentPropsWithoutRef } from "react";
+import { ComponentPropsWithoutRef, useCallback, useState } from "react";
 
 interface MarqueeProps extends ComponentPropsWithoutRef<"div"> {
   /**
@@ -41,16 +43,28 @@ export function Marquee({
   repeat = 4,
   ...props
 }: MarqueeProps) {
+  // local hover state to control play-state when pauseOnHover is true
+  const [hovered, setHovered] = useState(false);
+
+  const onMouseEnter = useCallback(() => {
+    if (pauseOnHover) setHovered(true);
+  }, [pauseOnHover]);
+  const onMouseLeave = useCallback(() => {
+    if (pauseOnHover) setHovered(false);
+  }, [pauseOnHover]);
+
   return (
     <div
       {...props}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
         "group flex overflow-hidden p-2 [--duration:40s] [--gap:1rem] [gap:var(--gap)]",
         {
           "flex-row": !vertical,
           "flex-col": vertical,
         },
-        className,
+        className
       )}
     >
       {Array(repeat)
@@ -58,12 +72,21 @@ export function Marquee({
         .map((_, i) => (
           <div
             key={i}
+            // apply animation styles inline to avoid relying on Tailwind arbitrary properties
             className={cn("flex shrink-0 justify-around [gap:var(--gap)]", {
               "animate-marquee flex-row": !vertical,
               "animate-marquee-vertical flex-col": vertical,
-              "group-hover:[animation-play-state:paused]": pauseOnHover,
-              "[animation-direction:reverse]": reverse,
             })}
+            style={
+              {
+                animationDirection: reverse ? "reverse" : "normal",
+                animationPlayState: pauseOnHover
+                  ? hovered
+                    ? "paused"
+                    : "running"
+                  : undefined,
+              } as React.CSSProperties
+            }
           >
             {children}
           </div>

@@ -102,7 +102,7 @@ const ReviewCard = ({
 
 export function MarqueeDemo() {
   return (
-    <section className="py-20 bg-gradient-to-b from-background via-muted/20 to-background">
+    <section className="py-20 ">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
@@ -146,7 +146,7 @@ export function MarqueeDemo() {
               <ReviewCard key={review.username} {...review} />
             ))}
           </Marquee>
-          <Marquee reverse pauseOnHover className="[--duration:25s]">
+          <Marquee reverse pauseOnHover className="[--duration:30s]">
             {secondRow.map((review) => (
               <ReviewCard key={review.username} {...review} />
             ))}

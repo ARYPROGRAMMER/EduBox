@@ -1,67 +1,77 @@
-"use client";
+"use client"
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BookOpen, Users, CheckIcon, Zap } from "lucide-react";
-import { motion } from "framer-motion";
-import { GradientText } from "@/components/ui/gradient-text";
-import { LandingFooter } from "@/components/landing-footer";
-import { LandingHeader } from "@/components/landing-header";
-import { DotPattern } from "@/components/ui/dot-pattern";
-import { SignUpButton } from "@clerk/nextjs";
-import { BentoDemo } from "./landing-features";
-import { HeroVideoDialogDemo } from "./magicui/hero-video-output";
-import { MarqueeDemo } from "./magicui/marquee-output";
-import { HoverBorderGradient } from "./ui/hover-border-gradient";
-import { HeroHighlight, Highlight } from "./ui/hero-highlight";
-
+import { Button } from "@/components/ui/button"
+import { ArrowRight } from "lucide-react"
+import { motion, useScroll, useTransform } from "framer-motion"
+import { GradientText } from "@/components/ui/gradient-text"
+import { LandingFooter } from "@/components/landing-footer"
+import { LandingHeader } from "@/components/landing-header"
+import { DotPattern } from "@/components/ui/dot-pattern"
+import { SignUpButton } from "@clerk/nextjs"
+import { BentoDemo } from "./landing-features"
+import { HeroVideoDialogDemo } from "./magicui/hero-video-output"
+import { MarqueeDemo } from "./magicui/marquee-output"
+import { HoverBorderGradient } from "./ui/hover-border-gradient"
+import { HeroHighlight, Highlight } from "./ui/hero-highlight"
+import { useRef } from "react"
 
 export function LandingPage() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  })
+
+  // Parallax effects for background elements
+  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
+  const dotOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0])
+
   return (
-    <div className="min-h-screen bg-background scroll-smooth">
+    <div ref={containerRef} className="min-h-screen bg-background scroll-smooth overflow-hidden">
       <LandingHeader />
 
-      <section className="relative py-20 sm:py-32">
-        {/* dense grid covering full hero section */}
-        <DotPattern
-          width={16}
-          height={16}
-          cx={1}
-          cy={1}
-          cr={0.8}
-          className="text-neutral-400/40 dark:text-neutral-600/40"
-        />
+      <section className="relative py-24 sm:py-32 lg:py-40 min-h-screen flex items-center">
+        {/* Enhanced dot patterns with scroll-based opacity */}
+        <motion.div style={{ opacity: dotOpacity }}>
 
-        {/* additional dense overlay with offset for fuller coverage */}
-        <DotPattern
-          width={20}
-          height={20}
-          cx={1}
-          cy={1}
-          cr={0.7}
-          className="text-neutral-300/30 dark:text-neutral-700/30"
-          style={{
-            transform: "translate(10px, 10px)",
-          }}
-        />
+          <DotPattern
+            width={16}
+            height={16}
+            cx={1}
+            cy={1}
+            cr={0.8}
+            className="text-neutral-400/40 dark:text-neutral-600/40"
+          />
 
-        {/* third layer for maximum coverage */}
-        <DotPattern
-          width={24}
-          height={24}
-          cx={1}
-          cy={1}
-          cr={0.6}
-          className="text-neutral-500/20 dark:text-neutral-500/20"
-          style={{
-            transform: "translate(-8px, 8px)",
-          }}
-        />
+          <DotPattern
+            width={20}
+            height={20}
+            cx={1}
+            cy={1}
+            cr={0.7}
+            className="text-neutral-300/30 dark:text-neutral-700/30"
+            style={{
+              transform: "translate(10px, 10px)",
+            }}
+          />
+
+          <DotPattern
+            width={24}
+            height={24}
+            cx={1}
+            cy={1}
+            cr={0.6}
+            className="text-neutral-500/20 dark:text-neutral-500/20"
+            style={{
+              transform: "translate(-8px, 8px)",
+            }}
+            
+          />
+        </motion.div>
 
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
-            className="text-center space-y-8"
+            className="text-center space-y-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -71,11 +81,11 @@ export function LandingPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              <div className="flex justify-center text-center">
+              <div className="flex justify-center text-center mb-8">
                 <HoverBorderGradient
                   containerClassName="rounded-full"
                   as="button"
-                  className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2"
+                  className="flex items-center space-x-2"
                 >
                   <EduboxLogo />
                   <span> Introducing EduBox v1.0</span>
@@ -85,33 +95,29 @@ export function LandingPage() {
 
             <HeroHighlight containerClassName="py-12 sm:py-20">
               <motion.h1
-                className="text-5xl sm:text-6xl font-bold tracking-tight max-w-4xl mx-auto leading-tight"
+                className="text-4xl sm:text-4xl lg:text-5xl font-bold tracking-tight max-w-5xl mx-auto leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
               >
                 Your AI-Powered{" "}
                 <Highlight className="text-black dark:text-white">
-                  <GradientText className="text-5xl sm:text-6xl font-bold ">
-                    Student Hub
-                  </GradientText>
+                  <GradientText className="text-4xl sm:text-4xl lg:text-5xl font-bold">Student Hub</GradientText>
                 </Highlight>
               </motion.h1>
 
               <motion.p
-                className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mt-4"
+                className="text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mt-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
               >
-                Organize your notes, manage your schedule, and stay connected
-                with campus life. EduBox is the only digital companion you need
-                for academic success.
+                Organize your notes, manage your schedule, and stay connected with campus life. EduBox is the only
+                digital companion you need for academic success.
               </motion.p>
-            </HeroHighlight>
 
-            <motion.div
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8"
+                    <motion.div
+              className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
@@ -119,45 +125,107 @@ export function LandingPage() {
               <SignUpButton mode="modal">
                 <Button
                   size="lg"
-                  className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
                 >
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>
               </SignUpButton>
             </motion.div>
+            </HeroHighlight>
 
-            
+      
+
           </motion.div>
         </div>
 
-        <div className="absolute top-20 left-10 opacity-15">
+        {/* Enhanced background gradients with parallax */}
+        <motion.div className="absolute top-20 left-10 opacity-15" style={{ y: backgroundY }}>
           <div className="w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full blur-3xl"></div>
-        </div>
-        <div className="absolute bottom-20 right-10 opacity-15">
+        </motion.div>
+        <motion.div className="absolute bottom-20 right-10 opacity-15" style={{ y: backgroundY }}>
           <div className="w-96 h-96 bg-gradient-to-r from-green-400 to-blue-600 rounded-full blur-3xl"></div>
-        </div>
+        </motion.div>
       </section>
 
-      <div id="demo">
-        <HeroVideoDialogDemo />
-      </div>
+      <motion.section
+        id="demo"
+        className="py-24 sm:py-32"
+        initial={{ opacity: 0, y: 60 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            <HeroVideoDialogDemo />
+          </motion.div>
+        </div>
+      </motion.section>
 
-      <div id="features">
-        <BentoDemo />
-      </div>
+      <motion.section
+        id="features"
+        className="py-24 sm:py-32"
+        initial={{ opacity: 0, y: 60 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            <BentoDemo />
+          </motion.div>
+        </div>
+      </motion.section>
 
-      <div id="testimonials">
-        <MarqueeDemo />
-      </div>
+      <motion.section
+        id="testimonials"
+        className="py-24 sm:py-32"
+        initial={{ opacity: 0, y: 60 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            <MarqueeDemo />
+          </motion.div>
+        </div>
+      </motion.section>
 
-      <div id="about">
-        <LandingFooter />
-      </div>
+      <motion.section
+        id="about"
+        initial={{ opacity: 0, y: 60 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          viewport={{ once: true }}
+        >
+          <LandingFooter />
+        </motion.div>
+      </motion.section>
     </div>
-  );
+  )
 }
 
-const EduboxLogo = () => (
-  <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
-);
+const EduboxLogo = () => <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />

@@ -32,15 +32,14 @@ export const HeroHighlight = ({
   };
 
   function handleMouseMove({
-    currentTarget,
     clientX,
     clientY,
   }: React.MouseEvent<HTMLDivElement>) {
-    if (!currentTarget) return;
-    let { left, top } = currentTarget.getBoundingClientRect();
-
-    mouseX.set(clientX - left);
-    mouseY.set(clientY - top);
+    // Use viewport coordinates directly so the fixed/full-viewport overlay
+    // mask positions correctly under the cursor regardless of the hero's
+    // position on the page.
+    mouseX.set(clientX);
+    mouseY.set(clientY);
   }
   return (
     <div
@@ -52,28 +51,47 @@ export const HeroHighlight = ({
       onMouseMove={handleMouseMove}
     >
       <div
-        className="pointer-events-none absolute inset-0 dark:hidden opacity-30"
+        className="pointer-events-none fixed inset-0 dark:hidden opacity-30"
         style={{
           backgroundImage: dotPatterns.light.default,
           backgroundRepeat: "repeat",
           // increase density by reducing spacing
           backgroundSize: "24px 24px",
+          backgroundAttachment: "fixed",
+          width: "100vw",
+          height: "100vh",
+          top: 0,
+          left: 0,
+          zIndex: 0,
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 hidden dark:block opacity-20"
+        className="pointer-events-none fixed inset-0 hidden dark:block opacity-20"
         style={{
           backgroundImage: dotPatterns.dark.default,
           backgroundRepeat: "repeat",
           backgroundSize: "24px 24px",
+          backgroundAttachment: "fixed",
+          width: "100vw",
+          height: "100vh",
+          top: 0,
+          left: 0,
+          zIndex: 0,
         }}
       />
       <motion.div
-        className="pointer-events-none absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 dark:hidden"
+        className="pointer-events-none fixed inset-0 opacity-0 transition duration-300 group-hover:opacity-100 dark:hidden"
         style={{
           backgroundImage: dotPatterns.light.hover,
           backgroundRepeat: "repeat",
           backgroundSize: "24px 24px",
+          backgroundAttachment: "fixed",
+          width: "100vw",
+          height: "100vh",
+          top: 0,
+          left: 0,
+          zIndex: 10,
+          // Use motion template but offset the mouse coordinates so they map to viewport
           WebkitMaskImage: useMotionTemplate`
             radial-gradient(
               260px circle at ${mouseX}px ${mouseY}px,
@@ -91,11 +109,17 @@ export const HeroHighlight = ({
         }}
       />
       <motion.div
-        className="pointer-events-none absolute inset-0 hidden opacity-0 transition duration-300 group-hover:opacity-100 dark:block"
+        className="pointer-events-none fixed inset-0 hidden opacity-0 transition duration-300 group-hover:opacity-100 dark:block"
         style={{
           backgroundImage: dotPatterns.dark.hover,
           backgroundRepeat: "repeat",
           backgroundSize: "24px 24px",
+          backgroundAttachment: "fixed",
+          width: "100vw",
+          height: "100vh",
+          top: 0,
+          left: 0,
+          zIndex: 10,
           WebkitMaskImage: useMotionTemplate`
             radial-gradient(
               260px circle at ${mouseX}px ${mouseY}px,

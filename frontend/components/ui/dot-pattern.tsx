@@ -16,7 +16,6 @@ interface DotPatternProps {
 }
 
 export function DotPattern({
-  // increase density by reducing default spacing
   width = 16,
   height = 16,
   x = 0,
@@ -32,8 +31,10 @@ export function DotPattern({
   return (
     <svg
       aria-hidden="true"
+      // Make the SVG default to full-viewport so the dot pattern tiles across
+      // the entire screen. Callers can still override via className/props.
       className={cn(
-        "pointer-events-none absolute inset-0 h-full w-full fill-neutral-400/80",
+        "pointer-events-none fixed inset-0 w-screen h-screen fill-neutral-400/80",
         className
       )}
       {...props}
@@ -48,7 +49,6 @@ export function DotPattern({
           x={x}
           y={y}
         >
-          {/* subtle dot with currentColor so the caller can tune fill via className */}
           <circle
             id="pattern-circle"
             cx={cx}
