@@ -5,6 +5,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Suspense } from "react";
+import { LoadingProvider } from "@/components/ui/loading-context";
+import { PageLoader } from "@/components/ui/loader";
 import "./globals.css";
 
 const comfortaa = Comfortaa({
@@ -30,14 +32,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${comfortaa.variable} font-sans antialiased`}>
         <ClerkProvider>
-          <Suspense fallback={<h1>Loading...</h1>}>
+          <Suspense fallback={<PageLoader text="Initializing EduBox..." />}>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
               enableSystem
               disableTransitionOnChange
             >
-              {children}
+              <LoadingProvider>{children}</LoadingProvider>
             </ThemeProvider>
           </Suspense>
         </ClerkProvider>

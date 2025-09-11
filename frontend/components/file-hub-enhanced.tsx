@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ButtonLoader, CardSkeleton, PageLoader } from "@/components/ui/loader";
+import { useLoading, useAsyncOperation } from "@/components/ui/loading-context";
 import {
   Select,
   SelectContent,
@@ -56,7 +58,12 @@ interface FileItem {
 }
 
 export function FileHubEnhanced() {
+  const [mounted, setMounted] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { executeWithLoading } = useAsyncOperation();
   const [files, setFiles] = useState<FileItem[]>([
     {
       id: 1,
@@ -115,6 +122,16 @@ export function FileHubEnhanced() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Safe date formatting function to prevent hydration issues
+  const formatDateString = (dateString: string) => {
+    if (!mounted) return "";
+    return new Date(dateString).toLocaleDateString();
+  };
+
   const categories = [
     { value: "all", label: "All Files" },
     { value: "notes", label: "Notes" },
@@ -145,9 +162,81 @@ export function FileHubEnhanced() {
     }
   };
 
-  const handleFiles = (fileList: FileList) => {
-    // Handle file upload logic here
-    console.log("Files to upload:", fileList);
+  const handleFiles = async (fileList: FileList) => {
+    if (fileList.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate file upload with progress
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+
+        // Simulate upload progress
+        for (let progress = 0; progress <= 100; progress += 10) {
+          setUploadProgress(progress);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        // Create new file item
+        const newFile: FileItem = {
+          id: Date.now() + i,
+          name: file.name,
+          type: getFileType(file.type),
+          size: formatFileSize(file.size),
+          uploadDate: new Date().toISOString().split("T")[0],
+          category: "other",
+        };
+
+        setFiles((prev) => [...prev, newFile]);
+      }
+
+      setShowUploadModal(false);
+    } catch (error) {
+      console.error("Error uploading files:", error);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const getFileType = (mimeType: string): FileItem["type"] => {
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    if (
+      mimeType.includes("pdf") ||
+      mimeType.includes("document") ||
+      mimeType.includes("text")
+    )
+      return "document";
+    if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
+    return "other";
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  const handleDeleteFile = async (fileId: number) => {
+    await executeWithLoading(async () => {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setFiles((prev) => prev.filter((file) => file.id !== fileId));
+    }, "Deleting file...");
+  };
+
+  const handleDownloadFile = async (file: FileItem) => {
+    await executeWithLoading(async () => {
+      // Simulate download
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      console.log("Downloading file:", file.name);
+    }, "Preparing download...");
   };
 
   const getFileIcon = (type: string) => {
@@ -280,7 +369,16 @@ export function FileHubEnhanced() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <Select>
+                  {isUploading && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Uploading...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} className="w-full" />
+                    </div>
+                  )}
+                  <Select disabled={isUploading}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -296,12 +394,21 @@ export function FileHubEnhanced() {
                     <Button
                       className="flex-1"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
                     >
-                      Choose Files
+                      {isUploading ? (
+                        <>
+                          <ButtonLoader size="sm" className="mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Choose Files"
+                      )}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setShowUploadModal(false)}
+                      disabled={isUploading}
                     >
                       Cancel
                     </Button>
@@ -410,14 +517,19 @@ export function FileHubEnhanced() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(file.uploadDate).toLocaleDateString()}
+                        {formatDateString(file.uploadDate)}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleDownloadFile(file)}
+                      >
                         <Download className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
@@ -427,6 +539,7 @@ export function FileHubEnhanced() {
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-red-600"
+                        onClick={() => handleDeleteFile(file.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

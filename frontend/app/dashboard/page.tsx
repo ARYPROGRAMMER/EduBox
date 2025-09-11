@@ -1,9 +1,11 @@
-import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { Suspense } from "react";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { PageLoader } from "@/components/ui/loader";
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen">
-      <DashboardSidebar />
-    </div>
+    <Suspense fallback={<PageLoader text="Loading dashboard..." />}>
+      <DashboardOverview />
+    </Suspense>
   );
 }

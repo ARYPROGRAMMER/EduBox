@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLoader, Loader } from "@/components/ui/loader";
 import {
   Send,
   Bot,
@@ -27,6 +28,7 @@ interface Message {
 
 interface ChatInterfaceProps {
   onClose: () => void;
+  sessionId?: string;
 }
 
 const quickSuggestions = [
@@ -76,10 +78,11 @@ const sampleResponses = {
   },
 };
 
-export function ChatInterface({ onClose }: ChatInterfaceProps) {
+export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -101,7 +104,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   }, [messages]);
 
   const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim() || isSending) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -113,33 +116,50 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsTyping(true);
+    setIsSending(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    const responseData = sampleResponses[
-      content as keyof typeof sampleResponses
-    ] || {
-      content:
-        "I understand you're asking about \"" +
-        content +
-        '". While I\'m still learning about your specific situation, I can help you with:\n\n📚 Finding and organizing your notes\n📅 Managing your schedule and assignments\n🎯 Discovering campus events and activities\n🍽️ Checking cafeteria menus and hours\n\nTry asking me something like "What\'s due this week?" or "Find my math notes".',
-      suggestions: [
-        "What's due this week?",
-        "Show my schedule",
-        "Find recent notes",
-      ],
-    };
+      const responseData = sampleResponses[
+        content as keyof typeof sampleResponses
+      ] || {
+        content:
+          "I understand you're asking about \"" +
+          content +
+          '". While I\'m still learning about your specific situation, I can help you with:\n\n📚 Finding and organizing your notes\n📅 Managing your schedule and assignments\n🎯 Discovering campus events and activities\n🍽️ Checking cafeteria menus and hours\n\nTry asking me something like "What\'s due this week?" or "Find my math notes".',
+        suggestions: [
+          "What's due this week?",
+          "Show my schedule",
+          "Find recent notes",
+        ],
+      };
 
-    const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      type: "ai",
-      content: responseData.content,
-      timestamp: new Date(),
-      suggestions: responseData.suggestions,
-    };
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "ai",
+        content: responseData.content,
+        timestamp: new Date(),
+        suggestions: responseData.suggestions,
+      };
 
-    setMessages((prev) => [...prev, aiMessage]);
-    setIsTyping(false);
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "ai",
+        content:
+          "Sorry, I'm having trouble responding right now. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+      setIsSending(false);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -328,15 +348,19 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="Ask me anything about your studies..."
             className="flex-1 h-12"
-            disabled={isTyping}
+            disabled={isTyping || isSending}
           />
           <Button
             type="submit"
             size="lg"
-            disabled={!inputValue.trim() || isTyping}
+            disabled={!inputValue.trim() || isTyping || isSending}
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6"
           >
-            <Send className="h-4 w-4" />
+            {isSending ? (
+              <ButtonLoader size="sm" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </form>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { enUS } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
@@ -14,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ButtonLoader, CardSkeleton } from "@/components/ui/loader";
+import { useAsyncOperation } from "@/components/ui/loading-context";
 import {
   Select,
   SelectContent,
@@ -65,12 +68,27 @@ interface Task {
 }
 
 export function PlannerHubEnhanced() {
+  const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
-  );
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setSelectedDate(new Date());
+  }, []);
+
+  // Safe date formatting function to prevent hydration issues
+  const formatDate = (date: Date) => {
+    if (!mounted) return "";
+    return date.toLocaleDateString();
+  };
+
+  const formatDateString = (dateString: string) => {
+    if (!mounted) return "";
+    return new Date(dateString).toLocaleDateString();
+  };
 
   const events: Event[] = [
     {
@@ -173,10 +191,12 @@ export function PlannerHubEnhanced() {
     },
   ];
 
-  const upcomingEvents = events
-    .filter((event) => new Date(event.date) >= new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5);
+  const upcomingEvents = mounted
+    ? events
+        .filter((event) => new Date(event.date) >= new Date())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 5)
+    : [];
 
   const pendingTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
@@ -359,56 +379,68 @@ export function PlannerHubEnhanced() {
               </div>
             </CardHeader>
             <CardContent>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border w-full"
-              />
+              {mounted ? (
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  className="rounded-md border w-full"
+                  locale={enUS}
+                />
+              ) : (
+                <div className="rounded-md border w-full h-64 bg-muted animate-pulse" />
+              )}
 
               {/* Events for Selected Date */}
               {selectedDate && (
                 <div className="mt-6">
                   <h4 className="font-semibold mb-3">
-                    Events for {selectedDate.toLocaleDateString()}
+                    Events for{" "}
+                    {selectedDate && mounted
+                      ? formatDate(selectedDate)
+                      : "Selected Date"}
                   </h4>
                   <div className="space-y-2">
-                    {events
-                      .filter(
-                        (event) =>
-                          new Date(event.date).toDateString() ===
-                          selectedDate.toDateString()
-                      )
-                      .map((event) => (
-                        <div
-                          key={event.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
-                              event.priority
-                            )}`}
-                          >
-                            {getEventTypeIcon(event.type)}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{event.title}</p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {event.time}
+                    {mounted && selectedDate
+                      ? events
+                          .filter(
+                            (event) =>
+                              new Date(event.date).toDateString() ===
+                              selectedDate.toDateString()
+                          )
+                          .map((event) => (
+                            <div
+                              key={event.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
+                                  event.priority
+                                )}`}
+                              >
+                                {getEventTypeIcon(event.type)}
                               </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {event.location}
+                              <div className="flex-1">
+                                <p className="font-medium">{event.title}</p>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {event.time}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {event.location}
+                                  </div>
+                                </div>
                               </div>
+                              <Badge
+                                className={getPriorityColor(event.priority)}
+                              >
+                                {event.priority}
+                              </Badge>
                             </div>
-                          </div>
-                          <Badge className={getPriorityColor(event.priority)}>
-                            {event.priority}
-                          </Badge>
-                        </div>
-                      ))}
+                          ))
+                      : []}
                   </div>
                 </div>
               )}
@@ -440,8 +472,7 @@ export function PlannerHubEnhanced() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{event.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(event.date).toLocaleDateString()} at{" "}
-                      {event.time}
+                      {formatDateString(event.date)} at {event.time}
                     </p>
                   </div>
                 </div>
@@ -526,7 +557,7 @@ export function PlannerHubEnhanced() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{task.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                        Due: {formatDateString(task.dueDate)}
                       </p>
                     </div>
                     <Badge

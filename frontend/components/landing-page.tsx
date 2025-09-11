@@ -21,9 +21,9 @@ import {
 import { motion } from "framer-motion";
 import { GradientText } from "@/components/ui/gradient-text";
 import { BackgroundGradient } from "@/components/ui/background-gradient";
-import { Footer } from "@/components/footer";
+import { LandingFooter } from "@/components/landing-footer";
 import { Marquee } from "@/components/ui/marquee";
-import { Header } from "@/components/header";
+import { LandingHeader } from "@/components/landing-header";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { cn } from "@/lib/utils";
@@ -101,7 +101,7 @@ const testimonials = [
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      <Header variant="landing" />
+      <LandingHeader />
       <section className="relative py-20 sm:py-32">
         <DotPattern
           width={20}
@@ -171,7 +171,6 @@ export function LandingPage() {
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>
               </SignUpButton>
-             
             </motion.div>
 
             {/* Stats */}
@@ -348,7 +347,7 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <Footer />
+      <LandingFooter />
     </div>
   );
 }

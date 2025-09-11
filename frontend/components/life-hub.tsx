@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -12,6 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  CardSkeleton,
+  ListSkeleton,
+  ButtonLoader,
+} from "@/components/ui/loader";
+import { useLoadingState } from "@/hooks/use-loading";
 import {
   CalendarDays,
   Users,
@@ -171,9 +177,20 @@ const todayMenu: MenuItem[] = [
 ];
 
 export function LifeHub() {
+  const [mounted, setMounted] = useState(false);
   const [events, setEvents] = useState<Event[]>(sampleEvents);
   const [clubs, setClubs] = useState<Club[]>(sampleClubs);
   const [menu] = useState<MenuItem[]>(todayMenu);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Safe date formatting function to prevent hydration issues
+  const formatDateString = (dateString: string) => {
+    if (!mounted) return "";
+    return new Date(dateString).toLocaleDateString();
+  };
 
   const toggleEventJoin = (eventId: string) => {
     setEvents(
@@ -272,8 +289,7 @@ export function LifeHub() {
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {new Date(event.date).toLocaleDateString()} at{" "}
-                        {event.time}
+                        {formatDateString(event.date)} at {event.time}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
