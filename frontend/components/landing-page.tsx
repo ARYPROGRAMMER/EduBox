@@ -1,39 +1,43 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
-import { motion, useScroll, useTransform } from "framer-motion"
-import { GradientText } from "@/components/ui/gradient-text"
-import { LandingFooter } from "@/components/landing-footer"
-import { LandingHeader } from "@/components/landing-header"
-import { DotPattern } from "@/components/ui/dot-pattern"
-import { SignUpButton } from "@clerk/nextjs"
-import { BentoDemo } from "./landing-features"
-import { HeroVideoDialogDemo } from "./magicui/hero-video-output"
-import { MarqueeDemo } from "./magicui/marquee-output"
-import { HoverBorderGradient } from "./ui/hover-border-gradient"
-import { HeroHighlight, Highlight } from "./ui/hero-highlight"
-import { useRef } from "react"
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { GradientText } from "@/components/ui/gradient-text";
+import { LandingFooter } from "@/components/landing-footer";
+import { LandingHeader } from "@/components/landing-header";
+import { DotPattern } from "@/components/ui/dot-pattern";
+import { SignUpButton } from "@clerk/nextjs";
+import { BentoDemo } from "./landing-features";
+import { HeroVideoDialogDemo } from "./magicui/hero-video-output";
+import { MarqueeDemo } from "./magicui/marquee-output";
+import { HoverBorderGradient } from "./ui/hover-border-gradient";
+import { HeroHighlight, Highlight } from "./ui/hero-highlight";
+import { useRef } from "react";
+import YoutubeVideoForm from "./input-form-main";
+import { PointerHighlight } from "./ui/pointer-highlight";
 
 export function LandingPage() {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"],
-  })
+  });
 
   // Parallax effects for background elements
-  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
-  const dotOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0])
+  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const dotOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background scroll-smooth overflow-hidden">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-background scroll-smooth overflow-hidden"
+    >
       <LandingHeader />
 
       <section className="relative py-24 sm:py-32 lg:py-40 min-h-screen flex items-center">
         {/* Enhanced dot patterns with scroll-based opacity */}
         <motion.div style={{ opacity: dotOpacity }}>
-
           <DotPattern
             width={16}
             height={16}
@@ -65,7 +69,6 @@ export function LandingPage() {
             style={{
               transform: "translate(-8px, 8px)",
             }}
-            
           />
         </motion.div>
 
@@ -102,7 +105,9 @@ export function LandingPage() {
               >
                 Your AI-Powered{" "}
                 <Highlight className="text-black dark:text-white">
-                  <GradientText className="text-4xl sm:text-4xl lg:text-5xl font-bold">Student Hub</GradientText>
+                  <GradientText className="text-4xl sm:text-4xl lg:text-5xl font-bold">
+                    Student Hub
+                  </GradientText>
                 </Highlight>
               </motion.h1>
 
@@ -112,38 +117,37 @@ export function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
               >
-                Organize your notes, manage your schedule, and stay connected with campus life. EduBox is the only
-                digital companion you need for academic success.
+                Organize your notes, manage your schedule, and stay connected
+                with campus life. EduBox is the only digital companion you need
+                for{" "}
+                <PointerHighlight containerClassName="inline-block align-baseline">
+                  academic
+                </PointerHighlight>{" "}
+                success.
               </motion.p>
 
-                    <motion.div
-              className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-            >
-              <SignUpButton mode="modal">
-                <Button
-                  size="lg"
-                  className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
-                >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </SignUpButton>
-            </motion.div>
+              {/* group wrapper so pointer-highlight responds to input focus and hover */}
+              <div className="group relative mt-10">
+                {/* Wrap the form and button together */}
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
+                  <YoutubeVideoForm />
+                </div>
+              </div>
             </HeroHighlight>
-
-      
-
           </motion.div>
         </div>
 
         {/* Enhanced background gradients with parallax */}
-        <motion.div className="absolute top-20 left-10 opacity-15" style={{ y: backgroundY }}>
+        <motion.div
+          className="absolute top-20 left-10 opacity-15"
+          style={{ y: backgroundY }}
+        >
           <div className="w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full blur-3xl"></div>
         </motion.div>
-        <motion.div className="absolute bottom-20 right-10 opacity-15" style={{ y: backgroundY }}>
+        <motion.div
+          className="absolute bottom-20 right-10 opacity-15"
+          style={{ y: backgroundY }}
+        >
           <div className="w-96 h-96 bg-gradient-to-r from-green-400 to-blue-600 rounded-full blur-3xl"></div>
         </motion.div>
       </section>
@@ -225,7 +229,9 @@ export function LandingPage() {
         </motion.div>
       </motion.section>
     </div>
-  )
+  );
 }
 
-const EduboxLogo = () => <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
+const EduboxLogo = () => (
+  <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
+);
