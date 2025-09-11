@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { LoadingProvider } from "@/components/ui/loading-context";
 import { PageLoader } from "@/components/ui/loader";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -40,6 +41,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <LoadingProvider>{children}</LoadingProvider>
+              <Toaster />
             </ThemeProvider>
           </Suspense>
         </ClerkProvider>

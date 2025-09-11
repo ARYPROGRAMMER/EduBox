@@ -49,6 +49,7 @@ export function PlaceholdersAndVanishInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [animating, setAnimating] = useState(false);
+  const submittedRef = useRef(false);
 
   const draw = useCallback(() => {
     if (!inputRef.current) return;
@@ -152,8 +153,12 @@ export function PlaceholdersAndVanishInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !animating && !disabled) {
-      vanishAndSubmit();
+    if (e.key === "Enter" && !animating && !disabled && !submittedRef.current) {
+      e.preventDefault();
+      // Use the form's requestSubmit so the normal submit handler runs
+      // and the parent's onSubmit receives the correct, latest value.
+      submittedRef.current = true;
+      inputRef.current?.form?.requestSubmit?.();
     }
   };
 
@@ -169,12 +174,15 @@ export function PlaceholdersAndVanishInput({
       );
       animate(maxX);
     }
+    submittedRef.current = false;
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    vanishAndSubmit();
+    if (submittedRef.current || disabled) return;
+    submittedRef.current = true;
     onSubmit && onSubmit(e);
+    vanishAndSubmit();
   };
   return (
     <form

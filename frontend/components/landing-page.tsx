@@ -91,7 +91,7 @@ export function LandingPage() {
                   className="flex items-center space-x-2 bg-background/80 backdrop-blur-sm"
                 >
                   <EduboxLogo />
-                  <span > Introducing EduBox v1.0</span>
+                  <span> Introducing EduBox v1.0</span>
                 </HoverBorderGradient>
               </div>
             </motion.div>
@@ -126,15 +126,13 @@ export function LandingPage() {
                 success.
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 className="group relative mt-12"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
               >
                 <div className="flex flex-col items-center gap-6">
-            
-                  
                   <motion.div
                     className="w-full max-w-2xl"
                     initial={{ scale: 0.95 }}
@@ -143,25 +141,8 @@ export function LandingPage() {
                   >
                     <YoutubeVideoForm />
                   </motion.div>
-                  
-                  <motion.div 
-                    className="flex flex-wrap justify-center items-center gap-4 text-xs text-muted-foreground/60"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.1, duration: 0.5 }}
-                  >
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
-                      ✨ AI-powered analysis
-                    </span>
-                    <span className="w-1 h-1 bg-muted-foreground/30 rounded-full hidden sm:block"></span>
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
-                      📝 Interactive notes
-                    </span>
-                    <span className="w-1 h-1 bg-muted-foreground/30 rounded-full hidden sm:block"></span>
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/30">
-                      🤖 Smart chat assistant
-                    </span>
-                  </motion.div>
+
+                 
                 </div>
               </motion.div>
             </HeroHighlight>

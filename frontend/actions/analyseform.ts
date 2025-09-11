@@ -1,16 +1,15 @@
 "use server";
 
 import { getVideoIdFromUrl } from "@/lib/getVideoIdFromUrl";
-import { redirect } from "next/navigation";
 
 export async function analyseYoutubeVideo(formData: FormData) {
   const url = formData.get("url")?.toString();
-  
+
   if (!url) {
     throw new Error("No URL provided");
   }
   const cleanUrl = url.trim();
-  
+
   if (!cleanUrl) {
     throw new Error("Empty URL provided");
   }
@@ -25,11 +24,5 @@ export async function analyseYoutubeVideo(formData: FormData) {
     throw new Error("Invalid video ID format");
   }
 
-  try {
-    // Redirect to the chat page with the video ID
-    redirect(`/dashboard/chat/${videoId}`);
-  } catch (error) {
-    console.error("Error redirecting to chat:", error);
-    throw new Error("Failed to navigate to video analysis");
-  }
+  return videoId;
 }
