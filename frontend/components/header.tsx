@@ -27,10 +27,8 @@ export function Header({ variant = "landing" }: HeaderProps) {
       <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-        <AgentPulse size="small" color="blue" />
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-white" />
-          </div>
+          <AgentPulse size="small" color="blue" />
+          <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
           <span className="font-bold text-xl">EduBox</span>
         </Link>
 
@@ -81,7 +79,6 @@ export function Header({ variant = "landing" }: HeaderProps) {
                       Sign In
                     </Button>
                   </SignInButton>
-
                 </>
               ) : mounted && isSignedIn ? (
                 <Link href="/dashboard">
@@ -117,8 +114,6 @@ export function Header({ variant = "landing" }: HeaderProps) {
             </div>
           </>
         )}
-
-        
       </div>
 
       {/* Mobile menu */}

@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "EduBox - AI Digital Locker for Students",
   description:
     "Your intelligent student hub that organizes notes, schedules, assignments, and campus life in one place",
+  icons: {
+    icon: "/logo-only.png",
+  },
 };
 
 export default function RootLayout({

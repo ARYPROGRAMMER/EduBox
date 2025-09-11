@@ -89,9 +89,11 @@ export function DashboardSidebar() {
           <div className="flex items-center gap-3">
             {isSidebarOpen ? (
               <>
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <GraduationCap className="w-6 h-6 text-white" />
-                </div>
+                <img
+                  src="/logo-only.png"
+                  alt="EduBox Logo"
+                  className="w-10 h-10"
+                />
                 <div className="flex-1 min-w-0">
                   <h1 className="font-bold text-xl text-foreground">EduBox</h1>
                   <p className="text-sm text-muted-foreground">
@@ -100,9 +102,11 @@ export function DashboardSidebar() {
                 </div>
               </>
             ) : (
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg mx-auto">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+              <img
+                src="/logo-only.png"
+                alt="EduBox Logo"
+                className="w-10 h-10 mx-auto"
+              />
             )}
           </div>
         </div>
@@ -347,9 +351,7 @@ export function DashboardSidebar() {
               )}
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-white" />
-              </div>
+              <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
               <h2 className="text-xl font-semibold text-foreground">
                 {activeTab === "overview" && "Dashboard Overview"}
                 {activeTab === "files" && "File Management"}
