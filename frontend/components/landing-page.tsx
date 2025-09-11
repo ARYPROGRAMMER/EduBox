@@ -11,16 +11,10 @@ import {
   Brain,
   Sparkles,
   Star,
-  CheckIcon,
-  Download,
-  Globe,
-  MessageSquare,
-  Shield,
-  Zap,
+  CheckIcon, Zap
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { GradientText } from "@/components/ui/gradient-text";
-import { BackgroundGradient } from "@/components/ui/background-gradient";
 import { LandingFooter } from "@/components/landing-footer";
 import { Marquee } from "@/components/ui/marquee";
 import { LandingHeader } from "@/components/landing-header";

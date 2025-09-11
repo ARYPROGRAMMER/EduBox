@@ -1,8 +1,19 @@
 "use client";
 
+import {
+  Navbar,
+  NavBody,
+  NavItems,
+  MobileNav,
+  NavbarButton,
+  MobileNavHeader,
+  MobileNavToggle,
+  MobileNavMenu,
+} from "@/components/ui/resizable-navbar";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, X } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -18,155 +29,127 @@ export function LandingHeader() {
     setMounted(true);
   }, []);
 
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <AgentPulse size="small" color="blue" />
-          <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
-          <span className="font-bold text-xl">EduBox</span>
-        </Link>
+  const handleThemeToggle = () => {
+    console.log("Current theme:", theme);
+    const newTheme = theme === "dark" ? "light" : "dark";
+    console.log("Setting theme to:", newTheme);
+    setTheme(newTheme);
+  };
 
-        <nav className="hidden md:flex items-center space-x-8">
-          <a
-            href="#features"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Features
-          </a>
-          <a
-            href="#testimonials"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Testimonials
-          </a>
-          <a
-            href="#pricing"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Pricing
-          </a>
-        </nav>
+  const navItems = [
+    { name: "Features", link: "#features" },
+    { name: "Testimonials", link: "#testimonials" },
+    { name: "Pricing", link: "#pricing" },
+  ];
 
-        <div className="hidden md:flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="h-9 w-9 px-0"
-          >
-            {mounted ? (
-              <>
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              </>
-            ) : (
-              <div className="h-4 w-4" />
-            )}
-          </Button>
+  const logoSection = (
+    <Link href="/" className="flex items-center space-x-3">
+      <img src="/logo-only.png" alt="EduBox Logo" className="w-8 h-8" />
+      <span className="font-bold text-xl text-black dark:text-white">
+        EduBox
+      </span>
+    </Link>
+  );
 
-          {mounted && !isSignedIn ? (
-            <>
-              <SignInButton mode="modal">
-                <Button variant="outline" size="sm">
-                  Sign In
-                </Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  Get Started
-                </Button>
-              </SignUpButton>
-            </>
-          ) : mounted && isSignedIn ? (
-            <Link href="/dashboard">
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              >
-                Go to Dashboard
-              </Button>
-            </Link>
-          ) : (
-            <div className="flex space-x-4">
-              <div className="w-16 h-9 bg-muted/50 rounded animate-pulse" />
-              <div className="w-24 h-9 bg-muted/50 rounded animate-pulse" />
-            </div>
-          )}
-        </div>
-
-        {/* Mobile menu button */}
-        <div className="md:hidden">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="h-9 w-9 px-0"
-          >
-            {isMenuOpen ? (
-              <X className="h-4 w-4" />
-            ) : (
-              <Menu className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      {isMenuOpen && mounted && (
-        <div className="md:hidden border-t border-border">
-          <div className="container mx-auto px-4 py-4 space-y-4">
-            <nav className="space-y-2">
-              <a
-                href="#features"
-                className="block py-2 text-sm font-medium transition-colors hover:text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Features
-              </a>
-              <a
-                href="#testimonials"
-                className="block py-2 text-sm font-medium transition-colors hover:text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Testimonials
-              </a>
-              <a
-                href="#pricing"
-                className="block py-2 text-sm font-medium transition-colors hover:text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Pricing
-              </a>
-            </nav>
-
-            {!isSignedIn ? (
-              <div className="space-y-2">
-                <SignInButton mode="modal">
-                  <Button variant="outline" className="w-full">
-                    Sign In
-                  </Button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
-                    Get Started
-                  </Button>
-                </SignUpButton>
-              </div>
-            ) : (
-              <Link href="/dashboard">
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
-                  Go to Dashboard
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
+  const themeToggle = (
+    <button
+      onClick={handleThemeToggle}
+      className="relative z-20 h-10 w-10 rounded-full flex items-center justify-center hover:bg-white/20 dark:hover:bg-neutral-800/50 transition-all duration-200 cursor-pointer border border-transparent hover:border-neutral-300 dark:hover:border-neutral-600"
+      aria-label="Toggle theme"
+      type="button"
+    >
+      {mounted ? (
+        <>
+          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-neutral-700 dark:text-neutral-300" />
+          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-neutral-700 dark:text-neutral-300" />
+        </>
+      ) : (
+        <div className="h-5 w-5" />
       )}
-    </header>
+    </button>
+  );
+
+  const authButtons =
+    mounted && !isSignedIn ? (
+      <div className="flex items-center space-x-3">
+        <SignInButton mode="modal">
+          <NavbarButton variant="gradient">Sign In</NavbarButton>
+        </SignInButton>
+      </div>
+    ) : mounted && isSignedIn ? (
+      <Link href="/dashboard">
+        <NavbarButton variant="gradient">Go to Dashboard</NavbarButton>
+      </Link>
+    ) : (
+      <div className="flex space-x-3">
+        <div className="w-16 h-10 bg-muted/50 rounded animate-pulse" />
+        <div className="w-24 h-10 bg-muted/50 rounded animate-pulse" />
+      </div>
+    );
+
+  const mobileAuthButtons =
+    mounted && !isSignedIn ? (
+      <div className="space-y-3 w-full">
+        <SignInButton mode="modal">
+          <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3">
+            Sign In
+          </Button>
+        </SignInButton>
+      </div>
+    ) : mounted && isSignedIn ? (
+      <Link href="/dashboard" className="w-full">
+        <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3">
+          Go to Dashboard
+        </Button>
+      </Link>
+    ) : (
+      <div className="flex space-x-4 w-full">
+        <div className="w-full h-12 bg-muted/50 rounded animate-pulse" />
+      </div>
+    );
+
+  return (
+    <div className="relative">
+      <Navbar className="fixed top-4 z-50 px-4">
+        <NavBody className="">
+          {logoSection}
+          <NavItems items={navItems} />
+          <div className="flex items-center space-x-4 relative z-20">
+            {themeToggle}
+            {authButtons}
+          </div>
+        </NavBody>
+        <MobileNav className="">
+          <MobileNavHeader>
+            {logoSection}
+            <div className="flex items-center space-x-3 relative z-10">
+              {themeToggle}
+              <MobileNavToggle
+                isOpen={isMenuOpen}
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              />
+            </div>
+          </MobileNavHeader>
+          <MobileNavMenu
+            isOpen={isMenuOpen}
+            onClose={() => setIsMenuOpen(false)}
+          >
+            <div className="space-y-6 w-full">
+              {navItems.map((item, idx) => (
+                <a
+                  key={idx}
+                  href={item.link}
+                  className="block py-3 text-base font-medium transition-colors hover:text-primary text-black dark:text-white border-b border-neutral-200 dark:border-neutral-700 last:border-b-0"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </a>
+              ))}
+              <div className="pt-4">{mobileAuthButtons}</div>
+            </div>
+          </MobileNavMenu>
+        </MobileNav>
+      </Navbar>
+    </div>
   );
 }
