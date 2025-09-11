@@ -6,6 +6,7 @@ import { Moon, Sun, Menu, X, GraduationCap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import AgentPulse from "./agent-pulse";
 
 interface HeaderProps {
   variant?: "landing" | "dashboard";
@@ -26,6 +27,7 @@ export function Header({ variant = "landing" }: HeaderProps) {
       <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
+        <AgentPulse size="small" color="blue" />
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
@@ -39,13 +41,13 @@ export function Header({ variant = "landing" }: HeaderProps) {
                 href="#features"
                 className="text-sm font-medium transition-colors hover:text-primary"
               >
-                Features
+                placeholder1
               </a>
               <a
                 href="#testimonials"
                 className="text-sm font-medium transition-colors hover:text-primary"
               >
-                Reviews
+                placeholder2
               </a>
               <a
                 href="#pricing"
@@ -79,14 +81,7 @@ export function Header({ variant = "landing" }: HeaderProps) {
                       Sign In
                     </Button>
                   </SignInButton>
-                  <SignUpButton mode="modal">
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    >
-                      Get Started
-                    </Button>
-                  </SignUpButton>
+
                 </>
               ) : mounted && isSignedIn ? (
                 <Link href="/dashboard">
@@ -122,6 +117,8 @@ export function Header({ variant = "landing" }: HeaderProps) {
             </div>
           </>
         )}
+
+        
       </div>
 
       {/* Mobile menu */}

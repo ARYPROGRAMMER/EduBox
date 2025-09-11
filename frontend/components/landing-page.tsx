@@ -23,7 +23,7 @@ import { GradientText } from "@/components/ui/gradient-text";
 import { BackgroundGradient } from "@/components/ui/background-gradient";
 import { Footer } from "@/components/footer";
 import { Marquee } from "@/components/ui/marquee";
-import { Header } from "@/components/header-simple";
+import { Header } from "@/components/header";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { cn } from "@/lib/utils";
@@ -102,8 +102,6 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header variant="landing" />
-
-      {/* Hero Section */}
       <section className="relative py-20 sm:py-32">
         <DotPattern
           width={20}
@@ -173,14 +171,7 @@ export function LandingPage() {
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>
               </SignUpButton>
-              <Button
-                variant="outline"
-                size="lg"
-                className="text-lg px-8 py-6 border-2 hover:bg-muted/50 transition-all duration-300"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download App
-              </Button>
+             
             </motion.div>
 
             {/* Stats */}

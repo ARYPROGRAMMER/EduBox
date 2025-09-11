@@ -1,12 +1,16 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { Comfortaa } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Suspense } from "react";
 import "./globals.css";
+
+const comfortaa = Comfortaa({
+  subsets: ["latin"],
+  variable: "--font-comfortaa",
+});
 
 export const metadata: Metadata = {
   title: "EduBox - AI Digital Locker for Students",
@@ -21,11 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}
-      >
+      <body className={`${comfortaa.variable} font-sans antialiased`}>
         <ClerkProvider>
-          <Suspense fallback={null}>
+          <Suspense fallback={<h1>Loading...</h1>}>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
