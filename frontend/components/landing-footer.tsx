@@ -64,7 +64,7 @@ export function LandingFooter() {
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-muted-foreground text-sm">
-            © 2024 EduBox. All rights reserved.
+            © 2025 EduBox. All rights reserved.
           </p>
           <p className="text-muted-foreground text-sm mt-4 md:mt-0">
             Made with ❤️ for students everywhere

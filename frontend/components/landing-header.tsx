@@ -15,9 +15,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import AgentPulse from "./agent-pulse";
 
 export function LandingHeader() {
   const { theme, setTheme } = useTheme();
@@ -37,9 +36,11 @@ export function LandingHeader() {
   };
 
   const navItems = [
+       { name: "Demo", link: "#demo" },
     { name: "Features", link: "#features" },
+ 
     { name: "Testimonials", link: "#testimonials" },
-    { name: "Pricing", link: "#pricing" },
+
   ];
 
   const logoSection = (
