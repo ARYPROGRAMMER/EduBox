@@ -36,11 +36,10 @@ export function LandingHeader() {
   };
 
   const navItems = [
-       { name: "Demo", link: "#demo" },
+    { name: "Demo", link: "#demo" },
     { name: "Features", link: "#features" },
- 
-    { name: "Testimonials", link: "#testimonials" },
 
+    { name: "Testimonials", link: "#testimonials" },
   ];
 
   const logoSection = (
@@ -78,9 +77,10 @@ export function LandingHeader() {
         </SignInButton>
       </div>
     ) : mounted && isSignedIn ? (
-      <Link href="/dashboard">
-        <NavbarButton variant="gradient">Go to Dashboard</NavbarButton>
-      </Link>
+      // Render NavbarButton as a Next.js Link to avoid nested <a> tags
+      <NavbarButton as={Link} href="/dashboard" variant="gradient">
+        Go to Dashboard
+      </NavbarButton>
     ) : (
       <div className="flex space-x-3">
         <div className="w-16 h-10 bg-muted/50 rounded animate-pulse" />
@@ -98,11 +98,15 @@ export function LandingHeader() {
         </SignInButton>
       </div>
     ) : mounted && isSignedIn ? (
-      <Link href="/dashboard" className="w-full">
-        <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3">
-          Go to Dashboard
+      // Use Button asChild so Link is the rendered element (no nested anchors)
+      <div className="w-full">
+        <Button
+          asChild
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3"
+        >
+          <Link href="/dashboard">Go to Dashboard</Link>
         </Button>
-      </Link>
+      </div>
     ) : (
       <div className="flex space-x-4 w-full">
         <div className="w-full h-12 bg-muted/50 rounded animate-pulse" />

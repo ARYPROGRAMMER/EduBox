@@ -209,3 +209,15 @@ html {
 .animate-gradient-shift {
   animation: gradient-shift 3s ease infinite;
 }
+
+/* Default (light mode): black background, white text */
+::selection {
+  background: #000; /* black background */
+  color: #fff;      /* white text */
+}
+
+/* Dark mode: white background, black text */
+.dark ::selection {
+  background: #fff; /* white background */
+  color: #000;      /* black text */
+}

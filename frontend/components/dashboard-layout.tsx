@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useUser, useAuth, UserButton } from "@clerk/nextjs";
+import { dark as clerkDark } from "@clerk/themes";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardHeader } from "@/components/dashboard-header";
 import {
   Calendar,
   MessageSquare,
@@ -14,16 +21,10 @@ import {
   Sun,
   Home,
   BarChart3,
-  LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useUser, useAuth, UserButton } from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
-import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { DashboardHeader } from "@/components/dashboard-header";
-import { DashboardFooter } from "@/components/dashboard-footer";
+import { motion } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -33,298 +34,185 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
   const { signOut } = useAuth();
-  const [mounted, setMounted] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Start with false to match SSR
   const pathname = usePathname();
 
-  // Fix hydration issues
+  const [mounted, setMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+    if (window.innerWidth >= 1024) setIsSidebarOpen(true);
+    const onResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Handle mobile responsiveness
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        // lg breakpoint
-        setIsSidebarOpen(false);
-      } else {
-        setIsSidebarOpen(true);
-      }
-    };
-
-    // Only run after mount to avoid hydration mismatch
-    if (mounted) {
-      handleResize();
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, [mounted]);
-
-  const navigationItems = [
-    {
-      name: "Overview",
-      href: "/dashboard",
-      icon: Home,
-      isActive: pathname === "/dashboard",
-    },
-    {
-      name: "Files",
-      href: "/dashboard/files",
-      icon: FolderOpen,
-      isActive: pathname === "/dashboard/files",
-    },
-    {
-      name: "Planner",
-      href: "/dashboard/planner",
-      icon: Calendar,
-      isActive: pathname === "/dashboard/planner",
-    },
-    {
-      name: "Life Hub",
-      href: "/dashboard/life-hub",
-      icon: Users,
-      isActive: pathname === "/dashboard/life-hub",
-    },
-    {
-      name: "Analytics",
-      href: "/dashboard/analytics",
-      icon: BarChart3,
-      isActive: pathname === "/dashboard/analytics",
-    },
-    {
-      name: "Ask AI",
-      href: "/dashboard/chat",
-      icon: MessageSquare,
-      isActive: pathname.startsWith("/dashboard/chat"),
-    },
+  const navItems = [
+    { name: "Overview", href: "/dashboard", icon: Home },
+    { name: "Files", href: "/dashboard/files", icon: FolderOpen },
+    { name: "Planner", href: "/dashboard/planner", icon: Calendar },
+    { name: "Life Hub", href: "/dashboard/life-hub", icon: Users },
+    { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+    { name: "Ask AI", href: "/dashboard/chat", icon: MessageSquare },
   ];
 
+  const activeGradient =
+    mounted && theme === "dark"
+      ? "from-slate-700/80 via-slate-800/80 to-slate-900/80"
+      : "from-emerald-500/80 via-teal-600/80 to-green-600/80";
+
+  // Use exact pixel widths so main content margin matches sidebar width precisely
+  const sidebarWidth = isSidebarOpen ? 280 : 80;
+
   return (
-    <div className="flex h-screen bg-background">
-      {/* Mobile backdrop */}
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 relative overflow-hidden">
+      {/* subtle spotlight gradient - changed to neutral */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-400/5 via-transparent to-transparent dark:from-gray-500/5" />
+
+      {/* overlay for mobile */}
       {mounted && isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-20 bg-black lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <div
+      {/* Sidebar (not draggable) */}
+      <aside
         className={cn(
-          "bg-card/50 backdrop-blur-sm border-r border-border flex flex-col fixed left-0 top-0 h-full z-30 transition-transform duration-300 ease-in-out",
-          mounted && isSidebarOpen
-            ? "w-72 translate-x-0"
-            : mounted && !isSidebarOpen
-            ? "w-16 translate-x-0 lg:translate-x-0"
-            : "w-16 -translate-x-full lg:translate-x-0", // Default state during SSR
-          mounted && !isSidebarOpen && "lg:w-16",
-          // On mobile, hide completely when closed
-          mounted && !isSidebarOpen && "-translate-x-full lg:translate-x-0"
+          "fixed left-0 top-0 z-30 h-full flex flex-col border-r backdrop-blur-xl",
+          "bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 shadow-xl"
         )}
+        style={{ width: sidebarWidth, transition: "width 300ms ease" }}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-border">
+        {/* header/logo */}
+        <div className="relative flex items-center justify-between px-4 py-5 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            {mounted && isSidebarOpen ? (
-              <>
-                <img
-                  src="/logo-only.png"
-                  alt="EduBox Logo"
-                  className="w-10 h-10"
-                />
-                <div className="flex-1 min-w-0">
-                  <h1 className="font-bold text-xl text-foreground">EduBox</h1>
-                  <p className="text-sm text-muted-foreground">
-                    AI Digital Locker
-                  </p>
-                </div>
-              </>
-            ) : (
-              <img
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 flex items-center justify-center">
+              <Image
                 src="/logo-only.png"
-                alt="EduBox Logo"
-                className="w-10 h-10 mx-auto"
+                alt="Logo"
+                width={40}
+                height={40}
+                className="object-contain"
               />
+            </div>
+            {isSidebarOpen && (
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">EduBox</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">AI Digital Locker</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Navigation */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-1">
-            {navigationItems.map((item) => {
+        {/* navigation */}
+        <ScrollArea className="flex-1 px-3 py-6">
+          <div className="space-y-2">
+            {navItems.map((item) => {
+              const active =
+                item.href === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname?.startsWith(item.href);
+
               const Icon = item.icon;
               return (
                 <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={item.isActive ? "default" : "ghost"}
-                    className={cn(
-                      "w-full h-11 px-4",
-                      mounted && isSidebarOpen
-                        ? "justify-start"
-                        : "justify-center",
-                      item.isActive
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                        : "hover:bg-muted/50"
-                    )}
-                    title={!mounted || !isSidebarOpen ? item.name : undefined}
-                  >
-                    <Icon
+                  <motion.div whileHover={{ scale: 1.03 }}>
+                    <Button
+                      variant="ghost"
                       className={cn(
-                        "w-4 h-4",
-                        mounted && isSidebarOpen ? "mr-3" : ""
+                        "w-full h-12 rounded-xl flex items-center",
+                        isSidebarOpen ? "justify-start px-4" : "justify-center px-0",
+                        active
+                          ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
                       )}
-                    />
-                    {mounted && isSidebarOpen && item.name}
-                  </Button>
+                    >
+                      <Icon className={cn("w-5 h-5", active && "text-white", isSidebarOpen && "mr-3")} />
+                      {isSidebarOpen && <span className="font-medium">{item.name}</span>}
+                    </Button>
+                  </motion.div>
                 </Link>
               );
             })}
           </div>
         </ScrollArea>
 
-        {/* User Profile & Settings */}
-        <div className="p-4 border-t border-border bg-muted/20">
-          {mounted && isSidebarOpen ? (
-            <>
-              <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-background/50">
-                <UserButton
-                  appearance={{
-                    baseTheme: theme === "dark" ? dark : undefined,
-                    elements: {
-                      avatarBox: "w-10 h-10",
-                      userButtonPopoverCard:
-                        "shadow-xl border border-border/50",
-                      userButtonPopoverActions: "gap-1",
-                      userButtonPopoverActionButton:
-                        "hover:bg-muted transition-colors",
-                      userButtonPopoverActionButtonIcon: "w-4 h-4",
-                      userButtonPopoverActionButtonText: "text-sm",
-                    },
-                  }}
-                  userProfileMode="navigation"
-                  userProfileUrl="/user-profile"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {user?.fullName || "Student"}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.primaryEmailAddress?.emailAddress ||
-                      "student@edu.com"}
-                  </p>
+        {/* profile & theme toggles */}
+        <div className="border-t border-slate-200 dark:border-slate-700 p-4 bg-white/30 dark:bg-slate-800/30">
+          {mounted && (
+            <div className="flex flex-col gap-3">
+              {isSidebarOpen && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                  <UserButton
+                    appearance={{
+                      baseTheme: theme === "dark" ? clerkDark : undefined,
+                      elements: { avatarBox: "w-10 h-10" },
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.fullName || "Student"}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.primaryEmailAddress?.emailAddress || "student@edu.com"}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-1">
+              )}
+
+              <div className="flex justify-center gap-2">
                 <Button
-                  variant="ghost"
                   size="sm"
-                  className="flex-1 h-9"
+                  variant="ghost"
+                  className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
-                  {theme === "dark" ? (
-                    <Sun className="w-4 h-4" />
-                  ) : (
-                    <Moon className="w-4 h-4" />
-                  )}
+                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </Button>
-                <Button variant="ghost" size="sm" className="flex-1 h-9">
+                <Button size="sm" variant="ghost" className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40">
                   <Settings className="w-4 h-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1 h-9"
-                  onClick={() => signOut()}
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
-              </div>
-            </>
-          ) : mounted && !isSidebarOpen ? (
-            <div className="flex flex-col gap-2 items-center">
-              <UserButton
-                appearance={{
-                  baseTheme: theme === "dark" ? dark : undefined,
-                  elements: {
-                    avatarBox: "w-8 h-8",
-                  },
-                }}
-                userProfileMode="navigation"
-                userProfileUrl="/user-profile"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                title="Toggle theme"
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0"
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0"
-                onClick={() => signOut()}
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (
-            // Render a placeholder during SSR/initial load
-            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-background/50">
-              <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
-              <div className="flex-1 min-w-0">
-                <div className="h-4 bg-muted rounded animate-pulse mb-1" />
-                <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
               </div>
             </div>
           )}
         </div>
+      </aside>
+
+      {/* Floating toggle button - positioned next to sidebar edge */}
+      <div
+        className="absolute top-1/2 z-40 flex flex-col gap-2"
+        style={{ left: sidebarWidth - 20, transform: "translateY(-50%)" }}
+      >
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsSidebarOpen((s) => !s)}
+          className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition"
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          )}
+        </motion.button>
       </div>
 
-      {/* Main Content */}
-      <div
-        className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-          mounted && isSidebarOpen
-            ? "ml-72 lg:ml-72"
-            : mounted && !isSidebarOpen
-            ? "ml-0 lg:ml-16"
-            : "ml-0"
-        )}
+      {/* main content */}
+      <main
+        className="flex-1 flex flex-col"
+        style={{ marginLeft: sidebarWidth, transition: "margin-left 300ms ease" }}
       >
-        {/* Dashboard Header */}
-        <DashboardHeader
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-          mounted={mounted}
-        />
-
-        {/* Content Area */}
+        {/* <DashboardHeader isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} mounted={mounted} /> */}
+       
+       
+       
         <div className="flex-1 overflow-auto">
           <div className="p-6">{children}</div>
         </div>
+        
+  
 
-        {/* Dashboard Footer */}
-        <DashboardFooter />
-      </div>
+      </main>
     </div>
   );
 }
