@@ -19,7 +19,7 @@ function YoutubeVideoForm() {
     "Transform videos into interactive learning experiences",
   ];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setUrl(e.target.value);
   };
 
@@ -31,7 +31,6 @@ function YoutubeVideoForm() {
       return;
     }
 
-    // Validate YouTube URL with a more comprehensive regex
     const isValidYouTubeUrl =
       /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[\w-]+/.test(
         url.trim()
@@ -51,7 +50,6 @@ function YoutubeVideoForm() {
         const videoId = await analyseYoutubeVideo(formData);
         toast.success("Analyzing video — redirecting...");
         router.push(`/dashboard/chat/${videoId}`);
-   
       } catch (error) {
         console.error("Error analyzing video:", error);
         const message =
