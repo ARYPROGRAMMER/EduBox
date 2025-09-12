@@ -14,18 +14,24 @@ const client = new SchematicClient({
 });
 
 export async function getTemporaryAccessToken() {
-  const user = await currentUser();
+  try {
+    const user = await currentUser();
 
-  if (!user) {
+    if (!user) {
+     
+      return null;
+    }
+
+
+    const response = await client.accesstokens.issueTemporaryAccessToken({
+      resource_type: "company",
+      lookup: {
+        id: user.id,
+      },
+    });
+
+    return response.data.token;
+  } catch (error) {
     return null;
   }
-
-  const response = await client.accesstokens.issueTemporaryAccessToken({
-    resource_type: "company",
-    lookup: {
-      id: user.id,
-    },
-  });
-
-  return response.data.token;
 }

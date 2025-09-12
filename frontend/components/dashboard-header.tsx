@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Menu, X } from "lucide-react";
+import { Search, Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface DashboardHeaderProps {
   isSidebarOpen: boolean;
@@ -17,7 +18,7 @@ export function DashboardHeader({
   mounted = true,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
-
+  const router = useRouter();
   const getPageTitle = () => {
     switch (true) {
       case pathname === "/dashboard":
@@ -71,12 +72,15 @@ export function DashboardHeader({
             className="pl-9 w-64 bg-background/50 border-muted"
           />
         </div>
+
         <Button
           size="sm"
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md"
+          onClick={() => {
+            router.push("/manage-plan");
+          }}
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add New
+          Manage Plan
         </Button>
       </div>
     </header>
