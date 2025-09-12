@@ -12,7 +12,7 @@ type Props = {
 
 export default function SchematicComponent({ accessToken }: Props) {
   const componentId = process.env.NEXT_PUBLIC_SCHEMATIC_COMPONENT_ID;
-  const [embedKey, setEmbedKey] = useState(0); 
+  const [embedKey, setEmbedKey] = useState(0);
 
   if (!accessToken) {
     console.error("SchematicComponent: accessToken is missing");
@@ -47,7 +47,7 @@ export default function SchematicComponent({ accessToken }: Props) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg p-4 relative bg-white shadow-sm border">
-             <div className="flex items-end justify-end text-sm text-gray-500">
+        <div className="flex items-end justify-end text-sm text-gray-500">
           <div className="flex items-end gap-2">
             <button
               onClick={() => {
@@ -66,12 +66,8 @@ export default function SchematicComponent({ accessToken }: Props) {
               accessToken={accessToken}
               id={componentId}
             />
-            
           </div>
-          
         </EmbedProvider>
-        
-   
       </div>
     </div>
   );
