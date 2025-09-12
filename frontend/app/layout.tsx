@@ -1,14 +1,13 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { Comfortaa } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
-import { ThemeProvider } from "next-themes";
-import { ClerkProvider } from "@clerk/nextjs";
-import { Suspense } from "react";
-import { LoadingProvider } from "@/components/ui/loading-context";
-import { PageLoader } from "@/components/ui/loader";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
+import ClientWrapper from "@/components/ClientWrapper";
+import { Toaster } from "sonner";
+import { Suspense } from "react";
+import { PageLoader } from "@/components/ui/loader";
+import { ThemeProvider } from "next-themes";
+import { LoadingProvider } from "@/components/ui/loading-context";
 
 const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -29,23 +28,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const schematicPubKey = process.env.NEXT_PUBLIC_SCHEMATIC_PUBLISHABLE_KEY;
+  if (!schematicPubKey) {
+    throw new Error("Schematic publishable key is not set");
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${comfortaa.variable} font-sans antialiased`}>
-        <ClerkProvider>
-          <Suspense fallback={<PageLoader text="Initializing EduBox..." />}>
+        <Suspense fallback={<PageLoader text="Initializing EduBox..." />}>
+          <LoadingProvider>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
               enableSystem
               disableTransitionOnChange
             >
-              <LoadingProvider>{children}</LoadingProvider>
-              <Toaster />
+              <ClientWrapper>
+                <main>{children}</main>
+                <Toaster position="bottom-center" />
+              </ClientWrapper>
             </ThemeProvider>
-          </Suspense>
-        </ClerkProvider>
-        <Analytics />
+          </LoadingProvider>
+        </Suspense>
       </body>
     </html>
   );
