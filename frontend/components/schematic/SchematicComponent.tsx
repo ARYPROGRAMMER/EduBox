@@ -47,19 +47,8 @@ export default function SchematicComponent({ accessToken }: Props) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg p-4 relative bg-white shadow-sm border">
-        <EmbedProvider>
-          <div className="w-full h-full min-h-[320px] sm:min-h-[420px] md:min-h-[520px] rounded">
-            <SchematicEmbed
-              key={embedKey}
-              accessToken={accessToken}
-              id={componentId}
-            />
-          </div>
-        </EmbedProvider>
-        \
-        <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
-          <span>Secure embed from Schematic</span>
-          <div className="flex items-center gap-2">
+             <div className="flex items-end justify-end text-sm text-gray-500">
+          <div className="flex items-end gap-2">
             <button
               onClick={() => {
                 setEmbedKey((k) => k + 1);
@@ -70,6 +59,19 @@ export default function SchematicComponent({ accessToken }: Props) {
             </button>
           </div>
         </div>
+        <EmbedProvider>
+          <div className="w-full h-full rounded">
+            <SchematicEmbed
+              key={embedKey}
+              accessToken={accessToken}
+              id={componentId}
+            />
+            
+          </div>
+          
+        </EmbedProvider>
+        
+   
       </div>
     </div>
   );

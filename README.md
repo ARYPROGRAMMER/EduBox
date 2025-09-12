@@ -1,10 +1,8 @@
-# EduBox - AI Digital Locker for Students
-
-<div align="center">
+<div align="center" style="margin-bottom: 10px;">
   <img src="frontend/public/logo-text.png" alt="EduBox" width="300" />
 </div>
 
-<div align="center">
+<div align="center" style="margin-top: 100px;">
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.5.2-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.1.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
@@ -31,109 +29,117 @@
 - **🏫 Campus Life Hub** - Stay connected with clubs, events, and dining
 - **🤖 AI Assistant** - Get instant answers about your academic life
 - **📊 Analytics Dashboard** - Track your academic progress
-- **🌙 Dark Mode** - Beautiful light and dark themes
+<!-- Improved README layout with responsive badge rows -->
 
-## 🚀 Quick Start
+<div align="center" style="margin-top: 12px;">
+   <img src="frontend/public/logo-text.png" alt="EduBox" width="300" />
 
-### Prerequisites
+   <h1 style="margin-top: 8px; margin-bottom: 4px;">EduBox</h1>
+   <p style="margin-top: 0; color: #555;">Your intelligent student hub — notes, planner, campus life, and an AI assistant in one app.</p>
 
-- Node.js 18+
-- pnpm (recommended) or npm
+   <!-- Badges: responsive rows, 4-5 per row depending on viewport -->
+   <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;">
+      <!-- Row 1: core tech -->
+      <a href="https://nextjs.org/" aria-label="Next.js">
+         <img src="https://img.shields.io/badge/Next.js-15.5.2-black?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" />
+      </a>
+      <a href="https://reactjs.org/" aria-label="React">
+         <img src="https://img.shields.io/badge/React-19.1.0-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+      </a>
+      <a href="https://typescriptlang.org/" aria-label="TypeScript">
+         <img src="https://img.shields.io/badge/TypeScript-5.5.4-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+      </a>
+      <a href="https://tailwindcss.com/" aria-label="Tailwind CSS">
+         <img src="https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+      </a>
+      <a href="https://clerk.com/" aria-label="Clerk">
+         <img src="https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
+      </a>
 
-### Installation
+      <!-- Row 2: community / meta -->
+      <a href="LICENSE" aria-label="License">
+         <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License" />
+      </a>
+      <a href="http://makeapullrequest.com" aria-label="PRs Welcome">
+         <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge" alt="PRs Welcome" />
+      </a>
+      <a href="CONTRIBUTING.md" aria-label="Contributions Welcome">
+         <img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=for-the-badge" alt="Contributions Welcome" />
+      </a>
 
-1. **Clone the repository**
+   </div>
+</div>
 
-   ```bash
-   git clone https://github.com/ARYPROGRAMMER/EduBox.git
-   cd EduBox
-   ```
+---
 
-2. **Install dependencies**
+## 🎓 About
 
-   ```bash
-   # Frontend
-   cd frontend
-   pnpm install
+EduBox is an intelligent student hub that organizes notes, schedules, assignments, and campus life in one place. It uses AI to help with organization, planning, and finding what you need quickly.
 
-   # Backend (if applicable)
-   cd ../backend
-   # Install backend dependencies
-   ```
+## ✨ Highlights
 
-3. **Set up environment variables**
+- AI-powered file organization and semantic search
+- Intelligent planner with reminders and calendar sync
+- Campus life hub: events, clubs, dining info
+- Built-in AI assistant for fast help and answers
+- Analytics dashboard to track study progress
+- Responsive UI with light/dark themes
 
-   ```bash
-   cp .env.example .env.local
-   # Add your Clerk keys and other environment variables
-   ```
+## 🚀 Quick start
 
-4. **Run the development server**
+1. Clone the repo and open the project:
 
-   ```bash
-   pnpm dev
-   ```
+```powershell
+git clone https://github.com/ARYPROGRAMMER/EduBox.git ; cd EduBox
+```
 
-5. **Open your browser**
-   Navigate to `http://localhost:3000`
+2. Install frontend dependencies (recommended: pnpm):
 
-## 🛠️ Tech Stack
+```powershell
+cd frontend ; pnpm install
+```
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, Shadcn/ui
-- **Authentication**: Clerk
-- **Database**: (Add your database here)
-- **Deployment**: Vercel (recommended)
+3. Copy environment example and add your keys:
 
-## 📁 Project Structure
+```powershell
+cp .env.example .env.local
+# edit .env.local with your Clerk and other keys
+```
+
+4. Run the dev server from the frontend folder:
+
+```powershell
+pnpm dev
+```
+
+Open http://localhost:3000
+
+## 🛠️ Tech stack
+
+- Frontend: Next.js 15, React 19, TypeScript
+- Styling: Tailwind CSS, Shadcn/ui
+- Auth: Clerk
+- Deployment: Vercel (recommended)
+
+## � Project layout
 
 ```
 EduBox/
-├── frontend/           # Next.js frontend application
-│   ├── app/           # App router pages
-│   ├── components/    # React components
-│   ├── lib/          # Utility functions
-│   └── public/       # Static assets
-├── backend/          # Backend services
-└── README.md         # You are here!
+├─ frontend/      # Next.js app
+├─ backend/       # Backend services (if used)
+└─ README.md
 ```
 
 ## 🤝 Contributing
 
-We love contributions! Please read our [Contributing Guide](CONTRIBUTING.md) to get started.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. Create a branch, make your changes, and open a PR.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙋‍♀️ Support
-
-- **Issues**: [GitHub Issues](https://github.com/ARYPROGRAMMER/EduBox/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ARYPROGRAMMER/EduBox/discussions)
-- **Email**: [Contact Us](mailto:contact@edubox.dev)
-
-## 🌟 Show Your Support
-
-If you find EduBox helpful, please consider:
-
-- ⭐ Starring this repository
-- 🐛 Reporting bugs
-- 💡 Suggesting new features
-- 🤝 Contributing to the codebase
+MIT — see [LICENSE](LICENSE)
 
 ---
 
-<div align="center">
-  <p>With ❤️ by Arya</p>
-  <p>
-    <a href="https://github.com/ARYPROGRAMMER">GitHub</a> •
-    <a href="https://edubox.dev">Website</a> •
-    <a href="https://twitter.com/edubox">Twitter</a>
-  </p>
+<div align="center" style="margin-top:14px;color:#666;">
+   <p>Made with ❤️ by Arya • <a href="https://github.com/ARYPROGRAMMER">GitHub</a> • <a href="https://edubox.dev">Website</a></p>
 </div>
