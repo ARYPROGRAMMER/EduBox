@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardHeader } from "@/components/dashboard-header";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Calendar,
   MessageSquare,
   FolderOpen,
@@ -23,6 +30,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  User,
+  LogOut,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -65,7 +74,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const sidebarWidth = isSidebarOpen ? 280 : 80;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 relative overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 relative">
       {/* subtle spotlight gradient - changed to neutral */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-400/5 via-transparent to-transparent dark:from-gray-500/5" />
 
@@ -170,9 +179,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </Button>
-                <Button size="sm" variant="ghost" className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40">
-                  <Settings className="w-4 h-4" />
-                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40">
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/profile" className="cursor-pointer">
+                        <User className="w-4 h-4 mr-2" />
+                        Profile Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut()}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           )}
@@ -199,15 +226,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* main content */}
       <main
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col h-full"
         style={{ marginLeft: sidebarWidth, transition: "margin-left 300ms ease" }}
       >
         {/* <DashboardHeader isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} mounted={mounted} /> */}
        
        
        
-        <div className="flex-1 overflow-auto">
-          <div className="p-6">{children}</div>
+        <div className={cn("flex-1 h-full", pathname?.includes('/chat') ? "flex w-full" : "overflow-auto")}>
+          {pathname?.includes('/chat') ? (
+            // Chat pages need full height and width without padding
+            <div className="w-full h-full">{children}</div>
+          ) : (
+            // Other pages use normal padding
+            <div className="p-6">{children}</div>
+          )}
         </div>
         
   

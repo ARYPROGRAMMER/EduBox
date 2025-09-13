@@ -1,6 +1,6 @@
 "use client";
 
-import { analyseYoutubeVideo } from "@/actions/analyseform";
+// import { analyseYoutubeVideo } from "@/actions/analyseform";
 import { PlaceholdersAndVanishInput } from "./ui/placeholders-and-vanish-input";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -47,7 +47,7 @@ function YoutubeVideoForm() {
       try {
         const formData = new FormData();
         formData.append("url", url.trim());
-        const videoId = await analyseYoutubeVideo(formData);
+        const videoId = formData;
         toast.success("Analyzing video — redirecting...");
         router.push(`/dashboard/chat/${videoId}`);
       } catch (error) {

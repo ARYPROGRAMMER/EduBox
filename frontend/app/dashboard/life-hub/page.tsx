@@ -1,9 +1,9 @@
-import { LifeHub } from "@/components/life-hub";
+import { LifeHubEnhanced } from "@/components/life-hub-enhanced";
 
 export default function LifeHubPage() {
   return (
     <div className="space-y-6">
-      <LifeHub />
+      <LifeHubEnhanced />
     </div>
   );
 }

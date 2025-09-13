@@ -13,10 +13,16 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as images from "../images.js";
-import type * as titles from "../titles.js";
-import type * as transcript from "../transcript.js";
-import type * as videos from "../videos.js";
+import type * as assignments from "../assignments.js";
+import type * as campusLife from "../campusLife.js";
+import type * as chatMessages from "../chatMessages.js";
+import type * as chatSessions from "../chatSessions.js";
+import type * as courses from "../courses.js";
+import type * as events from "../events.js";
+import type * as files from "../files.js";
+import type * as search from "../search.js";
+import type * as userContext from "../userContext.js";
+import type * as users from "../users.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,10 +33,16 @@ import type * as videos from "../videos.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  images: typeof images;
-  titles: typeof titles;
-  transcript: typeof transcript;
-  videos: typeof videos;
+  assignments: typeof assignments;
+  campusLife: typeof campusLife;
+  chatMessages: typeof chatMessages;
+  chatSessions: typeof chatSessions;
+  courses: typeof courses;
+  events: typeof events;
+  files: typeof files;
+  search: typeof search;
+  userContext: typeof userContext;
+  users: typeof users;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

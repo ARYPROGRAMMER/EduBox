@@ -28,7 +28,7 @@ import { useUser, useAuth, UserButton } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { PlannerHubEnhanced } from "@/components/planner-hub-enhanced";
 import { LifeHub } from "@/components/life-hub";
-import { ChatInterface } from "@/components/chat-interface-new";
+import { ChatInterface } from "@/components/chat-interface-convex";
 import { FileHubEnhanced } from "@/components/file-hub-enhanced";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useConvexUser } from "@/hooks/use-convex-user";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { enUS } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -68,11 +72,45 @@ interface Task {
 }
 
 export function PlannerHubEnhanced() {
+  const { user: clerkUser } = useUser();
+  const { user: convexUser } = useConvexUser();
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    startTime: "",
+    endTime: "",
+    type: "",
+    location: "",
+  });
+
+  // Fetch real data from Convex
+  const events = useQuery(
+    api.events.getEvents,
+    convexUser ? { userId: convexUser.clerkId } : "skip"
+  );
+  const upcomingAssignments = useQuery(
+    api.assignments.getUpcomingAssignments,
+    convexUser ? { userId: convexUser.clerkId } : "skip"
+  );
+  const courses = useQuery(
+    api.courses.getCourses,
+    convexUser ? { userId: convexUser.clerkId } : "skip"
+  );
+
+  // Mutations
+  const createEvent = useMutation(api.events.createEvent);
+  const createAssignment = useMutation(api.assignments.createAssignment);
+  const updateAssignment = useMutation(api.assignments.updateAssignment);
+  const deleteEvent = useMutation(api.events.deleteEvent);
+  const deleteAssignment = useMutation(api.assignments.deleteAssignment);
+
+  // Use simple loading state instead of useAsyncOperation
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -90,116 +128,98 @@ export function PlannerHubEnhanced() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const events: Event[] = [
-    {
-      id: 1,
-      title: "Physics Midterm Exam",
-      type: "exam",
-      date: "2025-09-15",
-      time: "10:00 AM",
-      duration: "2 hours",
-      location: "Room 301, Science Building",
-      priority: "high",
-      color: "red",
-    },
-    {
-      id: 2,
-      title: "Math Assignment 3 Due",
-      type: "assignment",
-      date: "2025-09-12",
-      time: "11:59 PM",
-      duration: undefined,
-      location: "Online Submission",
-      priority: "medium",
-      color: "orange",
-    },
-    {
-      id: 3,
-      title: "Chemistry Lab Session",
-      type: "class",
-      date: "2025-09-13",
-      time: "2:00 PM",
-      duration: "3 hours",
-      location: "Chemistry Lab B",
-      priority: "medium",
-      color: "blue",
-    },
-    {
-      id: 4,
-      title: "Study Group - Biology",
-      type: "study",
-      date: "2025-09-14",
-      time: "4:00 PM",
-      duration: "2 hours",
-      location: "Library, Group Study Room 3",
-      priority: "low",
-      color: "green",
-    },
-    {
-      id: 5,
-      title: "Campus Career Fair",
-      type: "event",
-      date: "2025-09-18",
-      time: "9:00 AM",
-      duration: "6 hours",
-      location: "Student Center Main Hall",
-      priority: "medium",
-      color: "purple",
-    },
-  ];
+  const handleCreateEvent = async () => {
+    if (!convexUser || !newEvent.title || !newEvent.startTime) return;
 
-  const tasks: Task[] = [
-    {
-      id: 1,
-      title: "Complete Physics Problem Set Chapter 7",
-      completed: false,
-      priority: "high",
-      dueDate: "2025-09-12",
-      category: "homework",
-    },
-    {
-      id: 2,
-      title: "Read Biology Chapter 5: Cell Division",
-      completed: true,
-      priority: "medium",
-      dueDate: "2025-09-10",
-      category: "reading",
-    },
-    {
-      id: 3,
-      title: "Prepare Chemistry Lab Report",
-      completed: false,
-      priority: "high",
-      dueDate: "2025-09-15",
-      category: "lab",
-    },
-    {
-      id: 4,
-      title: "Review Math Notes for Quiz",
-      completed: false,
-      priority: "medium",
-      dueDate: "2025-09-11",
-      category: "study",
-    },
-    {
-      id: 5,
-      title: "Update Resume for Career Fair",
-      completed: false,
-      priority: "high",
-      dueDate: "2025-09-17",
-      category: "career",
-    },
-  ];
+    setIsCreatingEvent(true);
+    try {
+      const startTime = new Date(newEvent.startTime).getTime();
+      const endTime = newEvent.endTime
+        ? new Date(newEvent.endTime).getTime()
+        : startTime + 60 * 60 * 1000; // Default 1 hour
 
-  const upcomingEvents = mounted
-    ? events
-        .filter((event) => new Date(event.date) >= new Date())
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(0, 5)
-    : [];
+      await createEvent({
+        userId: convexUser.clerkId,
+        title: newEvent.title,
+        description: newEvent.description,
+        startTime,
+        endTime,
+        type: newEvent.type || "personal",
+        location: newEvent.location,
+      });
 
-  const pendingTasks = tasks.filter((task) => !task.completed);
-  const completedTasks = tasks.filter((task) => task.completed);
+      setNewEvent({
+        title: "",
+        description: "",
+        startTime: "",
+        endTime: "",
+        type: "",
+        location: "",
+      });
+      setShowEventModal(false);
+    } catch (error) {
+      console.error("Error creating event:", error);
+    } finally {
+      setIsCreatingEvent(false);
+    }
+  };
+
+  // Convert events and assignments to calendar format
+  const calendarEvents = events || [];
+  const assignments = upcomingAssignments || [];
+
+  const getEventsForDate = (date: Date) => {
+    const dateString = date.toISOString().split("T")[0];
+
+    const dayEvents = calendarEvents.filter((event: any) => {
+      const eventDate = new Date(event.startTime).toISOString().split("T")[0];
+      return eventDate === dateString;
+    });
+
+    const dayAssignments = assignments.filter((assignment: any) => {
+      const assignmentDate = new Date(assignment.dueDate)
+        .toISOString()
+        .split("T")[0];
+      return assignmentDate === dateString;
+    });
+
+    return [...dayEvents, ...dayAssignments];
+  };
+
+  const upcomingEvents =
+    mounted && calendarEvents
+      ? calendarEvents
+          .filter((event: any) => new Date(event.startTime) >= new Date())
+          .sort(
+            (a: any, b: any) =>
+              new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          )
+          .slice(0, 5)
+      : [];
+
+  const pendingAssignments = assignments.filter(
+    (assignment: any) => assignment.status === "pending"
+  );
+  const completedAssignments = assignments.filter(
+    (assignment: any) => assignment.status === "completed"
+  );
+
+  // Calculate exams this week
+  const getExamsThisWeek = () => {
+    const today = new Date();
+    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const examsThisWeek = calendarEvents.filter((event: any) => {
+      const eventDate = new Date(event.startTime);
+      return (
+        event.type === "exam" &&
+        eventDate >= today &&
+        eventDate <= oneWeekFromNow
+      );
+    });
+    
+    return examsThisWeek.length;
+  };
 
   const getEventTypeIcon = (type: string) => {
     switch (type) {
@@ -259,7 +279,7 @@ export function PlannerHubEnhanced() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-orange-600">
-                  {pendingTasks.length}
+                  {pendingAssignments.length}
                 </p>
                 <p className="text-sm text-orange-600/70">Pending Tasks</p>
               </div>
@@ -274,7 +294,7 @@ export function PlannerHubEnhanced() {
                 <BookOpen className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-red-600">2</p>
+                <p className="text-3xl font-bold text-red-600">{getExamsThisWeek()}</p>
                 <p className="text-sm text-red-600/70">Exams This Week</p>
               </div>
             </div>
@@ -289,7 +309,10 @@ export function PlannerHubEnhanced() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-green-600">
-                  {Math.round((completedTasks.length / tasks.length) * 100)}%
+                  {Math.round(
+                    (completedAssignments.length / assignments.length) * 100
+                  ) || 0}
+                  %
                 </p>
                 <p className="text-sm text-green-600/70">Completion Rate</p>
               </div>
@@ -346,8 +369,43 @@ export function PlannerHubEnhanced() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
-                        <Input placeholder="Event title" />
-                        <Select>
+                        <Input
+                          placeholder="Event title"
+                          value={newEvent.title}
+                          onChange={(e) =>
+                            setNewEvent({ ...newEvent, title: e.target.value })
+                          }
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            type="datetime-local"
+                            placeholder="Start time"
+                            value={newEvent.startTime}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                startTime: e.target.value,
+                              })
+                            }
+                          />
+                          <Input
+                            type="datetime-local"
+                            placeholder="End time"
+                            value={newEvent.endTime}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                endTime: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <Select
+                          value={newEvent.type}
+                          onValueChange={(value) =>
+                            setNewEvent({ ...newEvent, type: value })
+                          }
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Event type" />
                           </SelectTrigger>
@@ -358,13 +416,38 @@ export function PlannerHubEnhanced() {
                             </SelectItem>
                             <SelectItem value="class">Class</SelectItem>
                             <SelectItem value="study">Study Session</SelectItem>
+                            <SelectItem value="personal">Personal</SelectItem>
                             <SelectItem value="event">Campus Event</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Input placeholder="Location" />
-                        <Textarea placeholder="Notes (optional)" />
+                        <Input
+                          placeholder="Location"
+                          value={newEvent.location}
+                          onChange={(e) =>
+                            setNewEvent({
+                              ...newEvent,
+                              location: e.target.value,
+                            })
+                          }
+                        />
+                        <Textarea
+                          placeholder="Description (optional)"
+                          value={newEvent.description}
+                          onChange={(e) =>
+                            setNewEvent({
+                              ...newEvent,
+                              description: e.target.value,
+                            })
+                          }
+                        />
                         <div className="flex gap-2">
-                          <Button className="flex-1">Save Event</Button>
+                          <Button
+                            className="flex-1"
+                            onClick={handleCreateEvent}
+                            disabled={isCreatingEvent}
+                          >
+                            {isCreatingEvent ? "Creating..." : "Save Event"}
+                          </Button>
                           <Button
                             variant="outline"
                             onClick={() => setShowEventModal(false)}
@@ -402,44 +485,36 @@ export function PlannerHubEnhanced() {
                   </h4>
                   <div className="space-y-2">
                     {mounted && selectedDate
-                      ? events
-                          .filter(
-                            (event) =>
-                              new Date(event.date).toDateString() ===
-                              selectedDate.toDateString()
-                          )
-                          .map((event) => (
+                      ? getEventsForDate(selectedDate).map((event: any) => (
+                          <div
+                            key={event._id || event.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                          >
                             <div
-                              key={event.id}
-                              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
+                                event.priority
+                              )}`}
                             >
-                              <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
-                                  event.priority
-                                )}`}
-                              >
-                                {getEventTypeIcon(event.type)}
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium">{event.title}</p>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {event.time}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {event.location}
-                                  </div>
+                              {getEventTypeIcon(event.type)}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium">{event.title}</p>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {event.time}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {event.location}
                                 </div>
                               </div>
-                              <Badge
-                                className={getPriorityColor(event.priority)}
-                              >
-                                {event.priority}
-                              </Badge>
                             </div>
-                          ))
+                            <Badge className={getPriorityColor(event.priority)}>
+                              {event.priority}
+                            </Badge>
+                          </div>
+                        ))
                       : []}
                   </div>
                 </div>
@@ -457,7 +532,7 @@ export function PlannerHubEnhanced() {
               <CardDescription>Your next important dates</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {upcomingEvents.map((event) => (
+              {upcomingEvents.map((event: any) => (
                 <div
                   key={event.id}
                   className="flex items-center gap-3 p-3 rounded-lg border"
@@ -538,33 +613,36 @@ export function PlannerHubEnhanced() {
                 <div className="flex items-center justify-between text-sm">
                   <span>Progress</span>
                   <span>
-                    {completedTasks.length}/{tasks.length} completed
+                    {completedAssignments.length}/{assignments.length} completed
                   </span>
                 </div>
                 <Progress
-                  value={(completedTasks.length / tasks.length) * 100}
+                  value={
+                    (completedAssignments.length / assignments.length) * 100 ||
+                    0
+                  }
                   className="h-2"
                 />
               </div>
 
               <div className="space-y-3 mt-4">
-                {pendingTasks.slice(0, 5).map((task) => (
+                {pendingAssignments.slice(0, 5).map((assignment: any) => (
                   <div
-                    key={task.id}
+                    key={assignment._id}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
                   >
                     <CheckCircle className="w-4 h-4 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{task.title}</p>
+                      <p className="font-medium truncate">{assignment.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        Due: {formatDateString(task.dueDate)}
+                        Due: {formatDateString(assignment.dueDate)}
                       </p>
                     </div>
                     <Badge
                       variant="outline"
-                      className={getPriorityColor(task.priority)}
+                      className={getPriorityColor(assignment.priority)}
                     >
-                      {task.priority}
+                      {assignment.priority}
                     </Badge>
                   </div>
                 ))}

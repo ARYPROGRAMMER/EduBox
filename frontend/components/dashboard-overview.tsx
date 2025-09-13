@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
   Card,
   CardContent,
@@ -32,142 +35,161 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { EventWithMeeting } from "@/components/event-with-meeting";
 import { cn } from "@/lib/utils";
 
 export function DashboardOverview() {
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate loading data
+  // Fetch real data from Convex
+  const userProfile = useQuery(
+    api.users.getUserByClerkId,
+    user ? { clerkId: user.id } : "skip"
+  );
+  const userStats = useQuery(
+    api.users.getUserStats,
+    user ? { userId: user.id } : "skip"
+  );
+  const courseStats = useQuery(
+    api.courses.getCourseStats,
+    user ? { userId: user.id } : "skip"
+  );
+  const upcomingAssignments = useQuery(
+    api.assignments.getUpcomingAssignments,
+    user ? { userId: user.id } : "skip"
+  );
+  const overdueAssignments = useQuery(
+    api.assignments.getOverdueAssignments,
+    user ? { userId: user.id } : "skip"
+  );
+  const upcomingEvents = useQuery(
+    api.events.getUpcomingEvents,
+    user ? { userId: user.id, days: 7, limit: 5 } : "skip"
+  );
+  const eventStats = useQuery(
+    api.events.getEventStats,
+    user ? { userId: user.id } : "skip"
+  );
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (
+      userProfile !== undefined &&
+      userStats !== undefined &&
+      courseStats !== undefined &&
+      upcomingAssignments !== undefined &&
+      upcomingEvents !== undefined
+    ) {
       setIsLoading(false);
-    }, 1500);
+    }
+  }, [userProfile, userStats, courseStats, upcomingAssignments, upcomingEvents]);
 
-    return () => clearTimeout(timer);
-  }, []);
-  const recentActivities = [
-    {
-      id: 1,
-      type: "assignment",
-      title: "Physics Problem Set submitted",
-      time: "2 hours ago",
-      icon: FileText,
-      color: "text-blue-600",
-    },
-    {
-      id: 2,
-      type: "study",
-      title: "Chemistry study session completed",
-      time: "5 hours ago",
-      icon: BookOpen,
-      color: "text-green-600",
-    },
-    {
-      id: 3,
-      type: "exam",
-      title: "Math Midterm scheduled",
-      time: "1 day ago",
-      icon: Calendar,
-      color: "text-orange-600",
-    },
-  ];
+  const formatTimeLeft = (dueDate: number) => {
+    const now = Date.now();
+    const diff = dueDate - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: "Physics Lab Report",
-      course: "Physics 101",
-      dueDate: "Sep 15, 2025",
-      priority: "high",
-      timeLeft: "2 days",
-    },
-    {
-      id: 2,
-      title: "Math Assignment 3",
-      course: "Calculus I",
-      dueDate: "Sep 18, 2025",
-      priority: "medium",
-      timeLeft: "5 days",
-    },
-  ];
+    if (days < 0) return "Overdue";
+    if (days === 0) return "Due today";
+    if (days === 1) return "Due tomorrow";
+    return `${days} days left`;
+  };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Welcome Section */}
-      <motion.div
-        className="mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          Welcome back! 👋
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Here&apos;s your academic overview for today. Keep up the great work!
-        </p>
-      </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950">
+      <div className="space-y-8 p-8">
+        {/* Welcome Section */}
+        <motion.div
+          className="mb-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="relative">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4 leading-tight">
+              Welcome back, {user?.firstName || user?.fullName || "Student"}! 👋
+            </h1>
+            <p className="text-muted-foreground text-xl max-w-2xl">
+              Here&apos;s your academic overview for today. You&apos;re doing great - keep up the excellent work!
+            </p>
+            {/* Decorative elements */}
+            <div className="absolute -top-2 -right-2 w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
+            <div className="absolute top-8 -left-4 w-16 h-16 bg-gradient-to-r from-indigo-400 to-blue-500 rounded-full opacity-10 blur-lg"></div>
+          </div>
+        </motion.div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {isLoading
-          ? Array.from({ length: 4 }).map((_, index) => (
-              <CardSkeleton key={index} lines={1} />
-            ))
-          : [
-              {
-                title: "Active Courses",
-                value: "12",
-                icon: GraduationCap,
-                color: "blue",
-                gradient: "from-blue-500 to-blue-600",
-              },
-              {
-                title: "Current GPA",
-                value: "3.85",
-                icon: Trophy,
-                color: "green",
-                gradient: "from-green-500 to-green-600",
-              },
-              {
-                title: "Study Streak",
-                value: "24",
-                icon: Zap,
-                color: "purple",
-                gradient: "from-purple-500 to-purple-600",
-              },
-              {
-                title: "Assignments Due",
-                value: "3",
-                icon: CalendarDays,
-                color: "orange",
-                gradient: "from-orange-500 to-orange-600",
-              },
-            ].map((stat, index) => (
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">{
+          isLoading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <CardSkeleton key={index} lines={1} />
+              ))
+            : [
+                {
+                  title: "Active Courses",
+                  value: courseStats?.activeCourses?.toString() || "0",
+                  icon: GraduationCap,
+                  color: "blue",
+                  gradient: "from-blue-500 to-blue-600",
+                  bgGradient: "from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900",
+                  description: "Enrolled this semester"
+                },
+                {
+                  title: "Current GPA",
+                  value: userProfile?.gpa ? userProfile.gpa.toFixed(2) : "Not Set",
+                  icon: Trophy,
+                  color: "green",
+                  gradient: "from-green-500 to-green-600",
+                  bgGradient: "from-green-50 to-green-100 dark:from-green-950 dark:to-green-900",
+                  description: "Academic performance"
+                },
+                {
+                  title: "Upcoming Events",
+                  value: eventStats?.thisWeek?.toString() || "0",
+                  icon: Zap,
+                  color: "purple",
+                  gradient: "from-purple-500 to-purple-600",
+                  bgGradient: "from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900",
+                  description: "This week"
+                },
+                {
+                  title: "Due Soon",
+                  value: upcomingAssignments?.length?.toString() || "0",
+                  icon: CalendarDays,
+                  color: "orange",
+                  gradient: "from-orange-500 to-orange-600",
+                  bgGradient: "from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900",
+                  description: "Assignments pending"
+                },
+              ].map((stat, index) => (
               <motion.div
                 key={stat.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Card className="group relative overflow-hidden hover:shadow-lg transition-all duration-300 border-2 hover:border-blue-200">
+                <Card className="group relative overflow-hidden hover:shadow-xl transition-all duration-500 border-0 bg-gradient-to-br border-blue-200 shadow-lg">
+                  <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5", stat.bgGradient)}></div>
                   <BorderBeam size={250} duration={12 + index} delay={index} />
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
+                  <CardContent className="p-7 relative z-10">
+                    <div className="flex items-center gap-5">
                       <div
                         className={cn(
-                          "w-14 h-14 rounded-2xl bg-gradient-to-r flex items-center justify-center text-white transition-all duration-300 group-hover:scale-110",
+                          "w-16 h-16 rounded-2xl bg-gradient-to-r flex items-center justify-center text-white shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:shadow-xl",
                           stat.gradient
                         )}
                       >
-                        <stat.icon className="w-7 h-7" />
+                        <stat.icon className="w-8 h-8" />
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-foreground">
+                      <div className="flex-1">
+                        <p className="text-4xl font-bold text-foreground mb-1">
                           {stat.value}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-base font-medium text-muted-foreground mb-1">
                           {stat.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground/70">
+                          {stat.description}
                         </p>
                       </div>
                     </div>
@@ -178,48 +200,63 @@ export function DashboardOverview() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Activity */}
         <motion.div
           className="lg:col-span-2"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="group relative overflow-hidden">
+          <Card className="group relative overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/50 dark:to-indigo-950/50"></div>
             <BorderBeam size={300} duration={15} delay={2} />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="w-5 h-5 text-blue-600" />
+            <CardHeader className="relative z-10 pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
                 Recent Activity
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-base">
                 Your latest academic accomplishments and updates
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative z-10">
               {isLoading ? (
                 <ListSkeleton items={4} />
               ) : (
                 <div className="space-y-4">
-                  {recentActivities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center mt-1">
-                        <activity.icon
-                          className={cn("w-4 h-4", activity.color)}
-                        />
+                  {upcomingEvents && upcomingEvents.length > 0 ? (
+                    upcomingEvents.map((event: any) => (
+                      <div
+                        key={event._id}
+                        className="flex items-start gap-4 p-4 rounded-xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-blue-100/50 dark:border-blue-900/50 hover:bg-blue-50/70 dark:hover:bg-blue-950/70 transition-all duration-300 shadow-sm hover:shadow-md"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                          <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-base text-foreground">{event.title}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {new Date(event.startTime).toLocaleDateString()} • {event.location || 'Online'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{activity.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.time}
-                        </p>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="w-8 h-8 text-gray-400" />
                       </div>
+                      <p className="text-base text-muted-foreground">
+                        No recent activity
+                      </p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">
+                        Your recent events will appear here
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>
@@ -230,13 +267,16 @@ export function DashboardOverview() {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <Card className="group relative overflow-hidden">
+          <Card className="group relative overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm h-full">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-red-50/50 dark:from-orange-950/50 dark:to-red-950/50"></div>
             <BorderBeam size={200} duration={18} delay={3} />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-600" />
+            <CardHeader className="relative z-10 pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-white" />
+                </div>
                 Upcoming Deadlines
               </CardTitle>
             </CardHeader>
@@ -245,44 +285,67 @@ export function DashboardOverview() {
                 <ListSkeleton items={3} />
               ) : (
                 <div className="space-y-3">
-                  {upcomingDeadlines.map((deadline) => (
-                    <div
-                      key={deadline.id}
-                      className="p-3 rounded-lg border bg-card/50"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">
-                            {deadline.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {deadline.course}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {deadline.dueDate}
-                          </p>
+                  {upcomingAssignments && upcomingAssignments.length > 0 ? (
+                    upcomingAssignments.map((assignment: any) => (
+                      <div
+                        key={assignment._id}
+                        className="p-3 rounded-lg border bg-card/50"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">
+                              {assignment.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {assignment.courseName || "Course"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Due:{" "}
+                              {new Date(
+                                assignment.dueDate
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={
+                              assignment.priority === "high"
+                                ? "destructive"
+                                : assignment.priority === "medium"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {formatTimeLeft(assignment.dueDate)}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={
-                            deadline.priority === "high"
-                              ? "destructive"
-                              : deadline.priority === "medium"
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {deadline.timeLeft}
-                        </Badge>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No upcoming deadlines
+                    </p>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Upcoming Meetings Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <EventWithMeeting 
+            events={upcomingEvents}
+            showCreateButton={true}
+            className="mt-6"
+          />
+        </motion.div>
       </div>
+    </div>
     </div>
   );
 }

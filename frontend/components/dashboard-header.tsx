@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GlobalSearch } from "@/components/global-search";
 import { Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -26,9 +27,21 @@ export function DashboardHeader({
   const [mounted, setMounted] = useState(mountedProp);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    // Add global keyboard shortcut for search
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setShowGlobalSearch(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const getPageTitle = () => {
@@ -43,10 +56,23 @@ export function DashboardHeader({
         return "Life Hub";
       case pathname === "/dashboard/analytics":
         return "Analytics";
+      case pathname === "/dashboard/profile":
+        return "Profile Settings";
       case pathname?.startsWith("/dashboard/chat"):
         return "AI Assistant";
       default:
         return "Dashboard";
+    }
+  };
+
+  const handleSearchClick = () => {
+    setShowGlobalSearch(true);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setShowGlobalSearch(true);
     }
   };
 
@@ -67,10 +93,16 @@ export function DashboardHeader({
             <Input
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              onClick={handleSearchClick}
               placeholder="Search files, notes, AI..."
-              className="pl-9 w-72 md:w-96 bg-white/40 dark:bg-slate-800/40 border border-transparent focus:border-slate-200 dark:focus:border-slate-600 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200"
+              className="pl-9 pr-16 w-72 md:w-96 bg-white/40 dark:bg-slate-800/40 border border-transparent focus:border-slate-200 dark:focus:border-slate-600 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer"
               aria-label="Search"
+              readOnly
             />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-muted/50">
+              ⌘K
+            </div>
           </motion.div>
         </div>
 
@@ -79,7 +111,7 @@ export function DashboardHeader({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setShowMobileSearch((s) => !s)}
+            onClick={handleSearchClick}
             aria-label="Open search"
             className="p-2 rounded-lg"
           >
@@ -138,6 +170,13 @@ export function DashboardHeader({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Global Search Modal */}
+      <GlobalSearch
+        isOpen={showGlobalSearch}
+        onClose={() => setShowGlobalSearch(false)}
+        initialQuery={searchValue}
+      />
     </header>
   );
 }
