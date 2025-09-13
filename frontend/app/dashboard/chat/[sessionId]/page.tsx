@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatInterface } from "@/components/chat-interface-new";
+// import { ChatInterface } from "@/components/chat-interface-new";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
