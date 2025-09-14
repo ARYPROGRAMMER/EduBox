@@ -11,7 +11,7 @@
   "dependencies": {
     "@ai-sdk/google": "^2.0.14",
     "@ai-sdk/react": "^2.0.42",
-    "@clerk/nextjs": "^6.31.10",
+    "@clerk/nextjs": "^6.32.0",
     "@clerk/themes": "^2.4.18",
     "@google/genai": "^1.19.0",
     "@headlessui/react": "^2.2.7",
