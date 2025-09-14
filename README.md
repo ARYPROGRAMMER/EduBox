@@ -1,36 +1,3 @@
-<div align="center" style="margin-bottom: 10px;">
-  <img src="frontend/public/logo-text.png" alt="EduBox" width="300" />
-</div>
-
-<div align="center" style="margin-top: 100px;">
-
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.2-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.1.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Clerk](https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white)](https://clerk.com/)
-
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
-
-</div>
-
----
-
-## 🎓 About EduBox
-
-**EduBox** is your intelligent student hub that organizes notes, schedules, assignments, and campus life in one place. Powered by AI, it streamlines your academic journey with smart organization, intelligent planning, and seamless campus life integration.
-
-## ✨ Features
-
-- **🗂️ Smart File Management** - AI-powered organization and semantic search
-- **📅 Intelligent Planner** - Never miss deadlines with smart scheduling
-- **🏫 Campus Life Hub** - Stay connected with clubs, events, and dining
-- **🤖 AI Assistant** - Get instant answers about your academic life
-- **📊 Analytics Dashboard** - Track your academic progress
-<!-- Improved README layout with responsive badge rows -->
-
 <div align="center" style="margin-top: 12px;">
    <img src="frontend/public/logo-text.png" alt="EduBox" width="300" />
 
@@ -55,8 +22,6 @@
       <a href="https://clerk.com/" aria-label="Clerk">
          <img src="https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
       </a>
-
-      <!-- Row 2: community / meta -->
       <a href="LICENSE" aria-label="License">
          <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License" />
       </a>
@@ -69,7 +34,21 @@
 
    </div>
 </div>
+</div>
 
+---
+
+## 🎓 About EduBox
+
+**EduBox** is your intelligent student hub that organizes notes, schedules, assignments, and campus life in one place. Powered by AI, it streamlines your academic journey with smart organization, intelligent planning, and seamless campus life integration.
+
+## ✨ Features
+
+- **🗂️ Smart File Management** - AI-powered organization and semantic search
+- **📅 Intelligent Planner** - Never miss deadlines with smart scheduling
+- **🏫 Campus Life Hub** - Stay connected with clubs, events, and dining
+- **🤖 AI Assistant** - Get instant answers about your academic life
+- **📊 Analytics Dashboard** - Track your academic progress
 ---
 
 ## 🎓 About
