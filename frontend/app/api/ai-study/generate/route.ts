@@ -3,7 +3,6 @@ import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { api } from "@/convex/_generated/api";
 import { getConvexClient } from "@/lib/convex";
-import { auth } from "@clerk/nextjs/server";
 
 const model = google("gemini-1.5-flash");
 
@@ -15,12 +14,8 @@ type ReqBody = {
 
 export async function POST(request: NextRequest) {
   try {
-  const reqBody: ReqBody = await request.json();
-  const { context, userId: clientUserId, options } = reqBody;
-
-  // Derive authenticated userId from Clerk for any persistence. We still allow
-  // unauthenticated requests to stream content, but persistence requires auth.
-  const { userId } = await auth();
+    const reqBody: ReqBody = await request.json();
+    const { context, userId, options } = reqBody;
 
   // Build prompt + system instruction depending on requested contentType
   const contentType = options?.contentType;
@@ -78,12 +73,10 @@ export async function POST(request: NextRequest) {
 
           // Persist assembled recommendations to Convex if userId present
           // Skip persistence for title-extraction calls (contentType === 'study_plan_title')
-          // Persist only when we have an authenticated userId.
           if (userId && contentType !== 'study_plan_title') {
             try {
               const convex = getConvexClient();
               await convex.mutation(api.generations.createGeneration, {
-                // Use server-derived Clerk userId (ignore client-supplied value).
                 userId,
                 title: options?.title ?? (options?.contentType === 'study_plan' ? 'Study Plan' : 'Study Recommendations'),
                 contentType: options?.contentType ?? "study_recommendations",
