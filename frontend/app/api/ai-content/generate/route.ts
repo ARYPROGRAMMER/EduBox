@@ -3,6 +3,7 @@ import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { api } from "@/convex/_generated/api";
 import { getConvexClient } from "@/lib/convex";
+import { auth } from "@clerk/nextjs/server";
 
 // Initialize Gemini model (match project's existing pattern)
 const model = google("gemini-1.5-flash");
@@ -17,7 +18,11 @@ type ReqBody = {
 export async function POST(request: NextRequest) {
   try {
   const reqBody: ReqBody = await request.json();
-  const { prompt, contentType, options, userId } = reqBody;
+  const { prompt, contentType, options, userId: clientUserId } = reqBody;
+
+  // Derive authenticated userId from Clerk for persistence. Allow unauthenticated
+  // streaming, but require auth to write generated content to Convex.
+  const { userId } = await auth();
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
@@ -69,7 +74,8 @@ export async function POST(request: NextRequest) {
 
           controller.close();
 
-          // Persist to Convex if userId provided
+          // Persist to Convex only if request is authenticated. We ignore any
+          // client-supplied userId and favor Clerk-provided identity.
           if (userId) {
             try {
               const convex = getConvexClient();
