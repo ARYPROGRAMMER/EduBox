@@ -32,6 +32,13 @@ import {
   ChevronRight,
   User,
   LogOut,
+  GraduationCap,
+  Plus,
+  Building,
+  Cloud,
+  Lock,
+  Crown,
+  Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -63,6 +70,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Life Hub", href: "/dashboard/life-hub", icon: Users },
     { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     { name: "Ask AI", href: "/dashboard/chat", icon: MessageSquare },
+  ];
+
+  const premiumNavItems = [
+    { name: "AI Study Assistant", href: "/dashboard/ai-study-assistant", icon: GraduationCap, premium: true },
+    { name: "AI Content Generation", href: "/dashboard/ai-content-generation", icon: Plus, premium: true },
+    { name: "Campus Integration", href: "/dashboard/campus-integration", icon: Building, premium: true },
+    { name: "Collaboration Hub", href: "/dashboard/collaboration", icon: Users, premium: true },
+    { name: "Cloud Storage Sync", href: "/dashboard/cloud-storage", icon: Cloud, premium: true },
+    { name: "Data Import/Export", href: "/dashboard/import-export", icon: Upload, premium: true },
   ];
 
   const activeGradient =
@@ -143,6 +159,44 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                       <Icon className={cn("w-5 h-5", active && "text-white", isSidebarOpen && "mr-3")} />
                       {isSidebarOpen && <span className="font-medium">{item.name}</span>}
+                    </Button>
+                  </motion.div>
+                </Link>
+              );
+            })}
+
+            {/* Premium Features Section */}
+            {isSidebarOpen && (
+              <div className="mt-6 mb-2">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide px-4">
+                  Premium Features
+                </p>
+              </div>
+            )}
+
+            {premiumNavItems.map((item) => {
+              const active = pathname?.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <motion.div whileHover={{ scale: 1.03 }}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full h-12 rounded-xl flex items-center",
+                        isSidebarOpen ? "justify-start px-4" : "justify-center px-0",
+                        active
+                          ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
+                      )}
+                    >
+                      <Icon className={cn("w-5 h-5", active && "text-white", isSidebarOpen && "mr-3")} />
+                      {isSidebarOpen && (
+                        <>
+                          <span className="font-medium flex-1 text-left">{item.name}</span>
+                              <Crown className="w-4 h-4" />
+                        </>
+                      )}
                     </Button>
                   </motion.div>
                 </Link>

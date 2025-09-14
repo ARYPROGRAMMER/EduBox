@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -6,6 +6,9 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { FileThumbnail } from "@/components/file-thumbnail";
+import { useFeatureGate } from "@/components/feature-gate";
+import { LockedFeature } from "@/components/locked-feature";
+import { FeatureFlag } from "@/features/flag";
 import {
   Card,
   CardContent,
@@ -51,7 +54,9 @@ import {
   MoreVertical,
   Heart,
   Edit,
+  Cloud,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface FileItem {
   _id: Id<"files">;
@@ -72,6 +77,9 @@ interface FileItem {
 
 export function FileHubEnhanced() {
   const { user } = useUser();
+  const { canUse: canManageFiles, hasReachedLimit, checkAccess } = useFeatureGate(
+    FeatureFlag.FILE_MANAGEMENT
+  );
   const [mounted, setMounted] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -162,6 +170,20 @@ export function FileHubEnhanced() {
 
   const handleFiles = async (fileList: FileList) => {
     if (fileList.length === 0 || !userId) return;
+
+    // Check feature access before uploading
+    if (!canManageFiles) {
+      toast.error(
+        "File management is not available on your current plan. Please upgrade to continue."
+      );
+      return;
+    }
+
+    // Check usage limit
+    if (hasReachedLimit) {
+      toast.error("You have reached your file upload limit. Please upgrade your plan to continue.");
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -258,10 +280,10 @@ export function FileHubEnhanced() {
     if (!userId || !newFileName.trim()) return;
 
     try {
-      await renameFile({ 
-        fileId, 
-        userId, 
-        newName: newFileName.trim() 
+      await renameFile({
+        fileId,
+        userId,
+        newName: newFileName.trim(),
       });
       setRenamingFile(null);
       setNewFileName("");
@@ -336,70 +358,73 @@ export function FileHubEnhanced() {
             Organize and access all your academic files in one place
           </p>
         </div>
-        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Files
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Upload Files</DialogTitle>
-              <DialogDescription>
-                Drag and drop files here or click to browse
-              </DialogDescription>
-            </DialogHeader>
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-300 hover:border-gray-400"
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              {isUploading ? (
-                <div className="space-y-4">
-                  <Upload className="w-12 h-12 mx-auto text-blue-500 animate-pulse" />
-                  <div>
-                    <p className="font-medium">Uploading files...</p>
-                    <Progress value={uploadProgress} className="mt-2" />
+        <LockedFeature feature={FeatureFlag.FILE_MANAGEMENT} requiredPlan="PRO">
+          <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Files
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Upload Files</DialogTitle>
+                <DialogDescription>
+                  Drag and drop files here or click to browse
+                </DialogDescription>
+              </DialogHeader>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                {isUploading ? (
+                  <div className="space-y-4">
+                    <Upload className="w-12 h-12 mx-auto text-blue-500 animate-pulse" />
+                    <div>
+                      <p className="font-medium">Uploading files...</p>
+                      <Progress value={uploadProgress} className="mt-2" />
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <>
-                  <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                  <p className="text-lg font-medium mb-2">
-                    Drop files here or click to upload
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Support for academic files: PDFs, presentations, images, videos, and documents
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        handleFiles(e.target.files);
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Choose Files
-                  </Button>
-                </>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-lg font-medium mb-2">
+                      Drop files here or click to upload
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Support for academic files: PDFs, presentations, images,
+                      videos, and documents
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          handleFiles(e.target.files);
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose Files
+                    </Button>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </LockedFeature>
       </div>
 
       {/* Filters */}
@@ -426,6 +451,45 @@ export function FileHubEnhanced() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Premium Storage Features */}
+      <LockedFeature
+        feature={FeatureFlag.UNLIMITED_STORAGE}
+        title="Unlimited Storage"
+        description="Upgrade to PRO for unlimited file storage and advanced file management features."
+        requiredPlan="PRO"
+      >
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 border-purple-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cloud className="w-5 h-5 text-purple-600" />
+              Premium Storage Features
+            </CardTitle>
+            <CardDescription>
+              Advanced file management and unlimited storage capacity
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
+                <Archive className="w-8 h-8 mx-auto text-purple-600 mb-2" />
+                <h4 className="font-semibold">Unlimited Storage</h4>
+                <p className="text-sm text-muted-foreground">Never worry about storage limits</p>
+              </div>
+              <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
+                <Share className="w-8 h-8 mx-auto text-blue-600 mb-2" />
+                <h4 className="font-semibold">Advanced Sharing</h4>
+                <p className="text-sm text-muted-foreground">Share with password protection</p>
+              </div>
+              <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
+                <Search className="w-8 h-8 mx-auto text-green-600 mb-2" />
+                <h4 className="font-semibold">Smart Search</h4>
+                <p className="text-sm text-muted-foreground">AI-powered content search</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </LockedFeature>
 
       {/* Files Grid */}
       {!displayFiles ? (

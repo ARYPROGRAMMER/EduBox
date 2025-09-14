@@ -104,13 +104,10 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     return bTime - aTime;
   });
 
-  // Debug: Log if we found duplicates (remove this later)
+  // Removed debug logging: duplicate session diagnostics were noisy in console
   useEffect(() => {
-    if (chatSessions && filteredSessions.length !== uniqueSessions.length) {
-      console.log(`Found ${filteredSessions.length - uniqueSessions.length} duplicate sessions`);
-      console.log('Original sessions:', filteredSessions.map(s => ({ id: s._id, sessionId: s.sessionId, title: s.title })));
-      console.log('Unique sessions:', uniqueSessions.map(s => ({ id: s._id, sessionId: s.sessionId, title: s.title })));
-    }
+    // Intentionally left blank: duplicate-session detection retained for potential future use.
+    // If needed, re-enable logging here with caution.
   }, [chatSessions, filteredSessions.length, uniqueSessions.length]);
 
   const handleNewChat = () => {
@@ -285,7 +282,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                     >
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <MessageSquare className="w-4 h-4 text-primary" />
+                          <MessageSquare className="w-4 h-4 text-primary-foreground" />
                         </div>
                       </div>
                       
@@ -429,7 +426,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-md">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="w-8 h-8 text-primary" />
+                <MessageSquare className="w-8 h-8 text-primary-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
               <p className="text-muted-foreground mb-4">

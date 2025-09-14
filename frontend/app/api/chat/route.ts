@@ -3,6 +3,7 @@ import { generateText, streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
 import { ChatRequest, ChatResponse } from "@/types/types";
+import { client } from "@/lib/schematic";
 
 // Initialize Gemini model
 const model = google("gemini-1.5-flash");
@@ -204,10 +205,7 @@ Guidelines:
 
 Current time: ${new Date().toLocaleString()}`;
 
-    console.log(
-      "System prompt with context:",
-      systemPrompt.substring(0, 500) + "..."
-    );
+    // Removed verbose system prompt logging to avoid leaking user/context data in server logs
 
     // Prepare messages for the AI model
     const messages = [
@@ -254,6 +252,19 @@ Current time: ${new Date().toLocaleString()}`;
         temperature: 0.7,
         maxRetries: 3,
       });
+
+      // Track usage in Schematic
+      // TODO: Implement proper Schematic event tracking
+      // try {
+      //   await client.events.createEvent({
+      //     eventType: "track",
+      //     companyKeys: { id: userId },
+      //     userKeys: { id: userId },
+      //   });
+      // } catch (trackingError) {
+      //   console.error("Failed to track usage:", trackingError);
+      //   // Don't fail the request if tracking fails
+      // }
 
       // Generate smart suggestions based on the response
       const suggestions = generateSuggestions(message, result.text);

@@ -11,6 +11,8 @@ export const createAssignment = mutation({
     dueDate: v.number(),
     assignedDate: v.optional(v.number()),
     priority: v.string(),
+    maxPoints: v.optional(v.number()),
+    estimatedHours: v.optional(v.number()),
     attachments: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
@@ -25,6 +27,8 @@ export const createAssignment = mutation({
       assignedDate: args.assignedDate || now,
       status: "pending",
       priority: args.priority,
+      maxPoints: args.maxPoints,
+      estimatedHours: args.estimatedHours,
       attachments: args.attachments,
       reminderSent: false,
       createdAt: now,

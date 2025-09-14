@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useFeatureGate } from "@/components/feature-gate";
+import { FeatureFlag } from "@/features/flag";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface DashboardHeaderProps {
   isSidebarOpen?: boolean;
@@ -29,12 +32,17 @@ export function DashboardHeader({
   const [searchValue, setSearchValue] = useState("");
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
+  // Check if user can access advanced search
+  const { canUse: canUseAdvancedSearch } = useFeatureGate(
+    FeatureFlag.ADVANCED_SEARCH
+  );
+
   useEffect(() => {
     setMounted(true);
 
-    // Add global keyboard shortcut for search
+    // Add global keyboard shortcut for search (only if user has access)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k" && canUseAdvancedSearch) {
         e.preventDefault();
         setShowGlobalSearch(true);
       }
@@ -42,7 +50,7 @@ export function DashboardHeader({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [canUseAdvancedSearch]);
 
   const getPageTitle = () => {
     switch (true) {
@@ -66,11 +74,13 @@ export function DashboardHeader({
   };
 
   const handleSearchClick = () => {
-    setShowGlobalSearch(true);
+    if (canUseAdvancedSearch) {
+      setShowGlobalSearch(true);
+    }
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && canUseAdvancedSearch) {
       e.preventDefault();
       setShowGlobalSearch(true);
     }
@@ -84,44 +94,49 @@ export function DashboardHeader({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/10 via-transparent to-transparent dark:from-black/10 mix-blend-overlay" />
 
       <div className="flex justify-center z-10">
-        <div className="relative hidden md:block">
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="flex items-center"
-          >
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              onClick={handleSearchClick}
-              placeholder="Search files, notes, AI..."
-              className="pl-9 pr-16 w-72 md:w-96 bg-white/40 dark:bg-slate-800/40 border border-transparent focus:border-slate-200 dark:focus:border-slate-600 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer"
-              aria-label="Search"
-              readOnly
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-muted/50">
-              ⌘K
-            </div>
-          </motion.div>
-        </div>
+        {canUseAdvancedSearch && (
+          <div className="relative hidden md:block">
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              className="flex items-center"
+            >
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onClick={handleSearchClick}
+                placeholder="Search files, notes, AI..."
+                className="pl-9 pr-16 w-72 md:w-96 bg-white/40 dark:bg-slate-800/40 border border-transparent focus:border-slate-200 dark:focus:border-slate-600 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer"
+                aria-label="Search"
+                readOnly
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-muted/50">
+                ⌘K
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* mobile search icon */}
-        <div className="md:hidden flex items-center">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleSearchClick}
-            aria-label="Open search"
-            className="p-2 rounded-lg"
-          >
-            <Search className="w-4 h-4" />
-          </Button>
-        </div>
+        {canUseAdvancedSearch && (
+          <div className="md:hidden flex items-center">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleSearchClick}
+              aria-label="Open search"
+              className="p-2 rounded-lg"
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* right actions */}
       <div className="flex items-center gap-3 z-10">
+        <NotificationBell />
         <Button
           size="sm"
           className="hidden sm:inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md rounded-lg"

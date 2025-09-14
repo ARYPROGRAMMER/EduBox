@@ -29,9 +29,7 @@ export function LandingHeader() {
   }, []);
 
   const handleThemeToggle = () => {
-    console.log("Current theme:", theme);
     const newTheme = theme === "dark" ? "light" : "dark";
-    console.log("Setting theme to:", newTheme);
     setTheme(newTheme);
   };
 

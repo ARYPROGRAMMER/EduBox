@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  serverExternalPackages: ["pdf-parse"],
+  //   experimental: {
+  //   serverComponentsExternalPackages: ["pdf-parse"],
+  // },
 };
 
 export default nextConfig;
