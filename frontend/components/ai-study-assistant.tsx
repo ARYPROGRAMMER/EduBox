@@ -554,19 +554,6 @@ export function AiStudyAssistant() {
                   </Card>
                 )}
 
-                {generatedContent && !isGenerating && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Generated Recommendations</CardTitle>
-                      <CardDescription className="text-muted-foreground">Saved to your history.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="prose prose-invert max-w-none">
-                        <ReactMarkdown>{normalizeMarkdown(generatedContent)}</ReactMarkdown>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               {(displayRecommendations || studyRecommendations)?.map((rec) => (
                 <Card key={rec.id} className="relative">
                   <CardHeader>
