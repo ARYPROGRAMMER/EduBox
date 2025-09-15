@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConvexUser } from "@/hooks/use-convex-user";
@@ -132,6 +132,24 @@ export function DataImportExportHub() {
   const createImportJob = useMutation(
     api.dataImportExport.createImportExportJob
   );
+  const autoFailStalePendingJobs = useMutation(
+    api.dataImportExport.autoFailStalePendingJobs
+  );
+
+  const runAutoFail = async (userTriggered = false) => {
+    try {
+      const res: any = await autoFailStalePendingJobs({});
+      if (userTriggered && res?.notificationIds && res.notificationIds.length) {
+        sonnerToast(
+          `Auto-failed ${res.failedCount} pending job(s). Check your notifications.`
+        );
+      }
+      return res;
+    } catch (e) {
+      // ignore
+      return null;
+    }
+  };
   const requestExport = useMutation(
     (api.dataImportExport as any).requestExport ||
       api.dataImportExport.createImportExportJob
@@ -183,6 +201,10 @@ export function DataImportExportHub() {
         csvData: fileContent,
       });
 
+      try {
+        await runAutoFail(true);
+      } catch (e) {}
+
       sonnerToast.success(
         `Started importing ${selectedDataType} data from ${uploadedFile.name}`
       );
@@ -199,6 +221,18 @@ export function DataImportExportHub() {
       );
     }
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await runAutoFail(false);
+      } catch (e) {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [autoFailStalePendingJobs]);
 
   const handleExportData = async (dataType: string) => {
     if (!user) return;
@@ -248,6 +282,10 @@ export function DataImportExportHub() {
         format: "csv",
       });
 
+      try {
+        await autoFailStalePendingJobs({});
+      } catch (e) {}
+
       sonnerToast.success(
         `Started exporting ${dataType} data to CSV format (job created)`
       );
@@ -258,6 +296,14 @@ export function DataImportExportHub() {
       sonnerToast.error(message);
     }
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      runAutoFail(false).catch(() => {});
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoFailStalePendingJobs]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

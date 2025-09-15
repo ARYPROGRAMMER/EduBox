@@ -26,6 +26,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,8 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const currentSessionId = params.sessionId as string;
 
@@ -74,6 +77,8 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   );
 
   const deleteSession = useMutation(api.chatSessions.deleteSession);
+  const deleteSessions = useMutation(api.chatSessions.deleteSessions);
+  const deleteAllSessions = useMutation(api.chatSessions.deleteAllSessions);
   const updateSession = useMutation(api.chatSessions.updateSession);
 
   // Filter sessions based on search query and deduplicate by sessionId
@@ -150,6 +155,58 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     } catch (error) {
       console.error("Failed to delete session:", error);
       toast.error("Failed to delete session");
+    }
+  };
+
+  const toggleSelectSession = (sessionId: string, checked?: boolean) => {
+    setSelectedSessions((prev) => {
+      const has = prev.includes(sessionId);
+      if (typeof checked === "boolean") {
+        if (checked && !has) return [...prev, sessionId];
+        if (!checked && has) return prev.filter((s) => s !== sessionId);
+        return prev;
+      }
+      if (has) return prev.filter((s) => s !== sessionId);
+      return [...prev, sessionId];
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!convexUser || selectedSessions.length === 0) return;
+    if (!confirm(`Delete ${selectedSessions.length} selected conversation(s)? This cannot be undone.`)) return;
+
+    setIsBulkDeleting(true);
+    try {
+      await deleteSessions({ sessionIds: selectedSessions, userId: convexUser.clerkId });
+      setSelectedSessions([]);
+      // If current session was deleted, navigate away
+      if (currentSessionId && selectedSessions.includes(currentSessionId)) {
+        router.push("/dashboard/chat");
+      }
+      toast.success("Selected conversations deleted");
+    } catch (error) {
+      console.error("Failed to delete selected sessions:", error);
+      toast.error("Failed to delete selected conversations");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!convexUser) return;
+    if (!confirm("Delete ALL conversations and their messages? This cannot be undone.")) return;
+
+    setIsBulkDeleting(true);
+    try {
+      await deleteAllSessions({ userId: convexUser.clerkId });
+      setSelectedSessions([]);
+      router.push("/dashboard/chat");
+      toast.success("All conversations deleted");
+    } catch (error) {
+      console.error("Failed to delete all sessions:", error);
+      toast.error("Failed to delete all conversations");
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -231,7 +288,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
       <div
         className={cn(
           "flex flex-col border-r bg-card transition-all duration-300 relative z-10",
-          isSidebarOpen ? "w-80 min-w-80" : "w-0 min-w-0 overflow-visible"
+          isSidebarOpen ? "w-90 min-w-90" : "w-0 min-w-0 overflow-visible"
         )}
       >
         {/* Toggle that sticks to the sidebar border */}
@@ -264,6 +321,32 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           <div className="p-2 border-b bg-muted/50">
             <div className="flex items-center justify-between mb-3 mt-1 ml-2">
               <h2 className="font-semibold text-md">Chat History</h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedSessions.length === 0 || isBulkDeleting}
+                  title={selectedSessions.length ? `Delete ${selectedSessions.length} selected` : "Delete selected"}
+                  aria-label="Delete selected conversations"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 py-0 flex items-center gap-1 text-destructive"
+                  onClick={handleDeleteAll}
+                  disabled={isBulkDeleting}
+                  title="Delete all conversations"
+                  aria-label="Delete all conversations"
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                  <span className="text-xs text-destructive">All</span>
+                </Button>
+              </div>
             </div>
 
             {/* Search */}
@@ -308,18 +391,30 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                         key={session._id}
                         onClick={() => handleSessionClick(session.sessionId)}
                         className={cn(
-                          "relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group hover:bg-muted/50 w-full",
+                          "relative flex items-center gap-3 py-3 px-4 pr-8 rounded-lg cursor-pointer transition-colors group hover:bg-muted/50 w-full",
                           currentSessionId === session.sessionId &&
                             "bg-muted border"
                         )}
                       >
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <MessageSquare className="w-4 h-4 text-primary-foreground" />
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={selectedSessions.includes(session.sessionId)}
+                              onClick={(e) => e.stopPropagation()}
+                              onCheckedChange={(v) => {
+                                // Radix returns boolean or 'indeterminate'
+                                const checked = v === true;
+                                toggleSelectSession(session.sessionId, checked);
+                              }}
+                              className="mr-1"
+                            />
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <MessageSquare className="w-4 h-4 text-primary-foreground" />
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex-1 min-w-0 pr-10">
+                        <div className="flex-1 min-w-0 pr-12 relative">
                           {editingSessionId === session._id ? (
                             <div className="flex items-center gap-1">
                               <Input
@@ -388,47 +483,47 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                               )}
                             </span>
                           </div>
-                        </div>
 
-                        {editingSessionId !== session._id && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0 absolute right-2 top-1/2 -translate-y-1/2 z-10"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={(e) =>
-                                  handleRenameSession(
-                                    session.sessionId,
-                                    session._id,
-                                    session.title || "Untitled Chat",
-                                    e
-                                  )
-                                }
-                              >
-                                <Edit3 className="w-4 h-4 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={(e) =>
-                                  handleDeleteSession(session.sessionId, e)
-                                }
-                                className="text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                          {editingSessionId !== session._id && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0 absolute right-2 top-1/2 -translate-y-1/2 z-10"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) =>
+                                    handleRenameSession(
+                                      session.sessionId,
+                                      session._id,
+                                      session.title || "Untitled Chat",
+                                      e
+                                    )
+                                  }
+                                >
+                                  <Edit3 className="w-4 h-4 mr-2" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) =>
+                                    handleDeleteSession(session.sessionId, e)
+                                  }
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

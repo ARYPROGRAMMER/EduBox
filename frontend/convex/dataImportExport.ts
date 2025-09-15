@@ -3,6 +3,68 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { api } from "./_generated/api";
 
+export const autoFailStalePendingJobs = mutation({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      const stale = await ctx.db
+        .query("dataImportExport")
+        .filter((q: any) =>
+          q.and(
+            q.eq(q.field("status"), "pending"),
+            q.lt(q.field("startedAt"), oneHourAgo)
+          )
+        )
+        .collect();
+      const createdNotificationIds: any[] = [];
+      for (const job of stale) {
+        try {
+          await ctx.db.patch(job._id, {
+            status: "failed",
+            resultSummary: "Automatically failed after 1 hour of pending",
+            completedAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+
+          // Create an in-app notification for the job owner
+          try {
+            const id = await ctx.db.insert("notifications", {
+              userId: job.userId,
+              title: "Import/Export Job Failed",
+              message: `Your ${job.operation} of ${job.dataType} was automatically marked failed after 1 hour in pending state.`,
+              type: "system",
+              priority: "high",
+              relatedId: String(job._id),
+              relatedType: "dataImportExport",
+              isRead: false,
+              isArchived: false,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+            createdNotificationIds.push(id);
+          } catch (notifErr) {
+            console.warn(
+              "Failed to create notification for auto-failed job",
+              job._id,
+              notifErr
+            );
+          }
+        } catch (e) {
+          console.warn("Failed to auto-fail job", job._id, e);
+        }
+      }
+
+      return {
+        failedCount: stale.length,
+        notificationIds: createdNotificationIds,
+      };
+    } catch (e) {
+      console.warn("Error auto-failing stale pending jobs:", e);
+    }
+  },
+});
+
 // Create import/export job
 export const createImportExportJob = mutation({
   args: {
@@ -63,12 +125,64 @@ export const updateImportExportJob = mutation({
       ...updateData,
       updatedAt: Date.now(),
     };
+    const existing = await ctx.db.get(jobId);
 
     if (args.status === "completed" || args.status === "failed") {
       updates.completedAt = Date.now();
     }
 
-    return await ctx.db.patch(jobId, updates);
+    const patched = await ctx.db.patch(jobId, updates);
+
+    try {
+      const newStatus = args.status || existing?.status;
+      const oldStatus = existing?.status;
+
+      if (existing && existing.userId) {
+        const now = Date.now();
+
+        if (oldStatus !== "processing" && newStatus === "processing") {
+          await ctx.db.insert("notifications", {
+            userId: existing.userId,
+            title: "Import/Export Started",
+            message: `Your ${existing.operation} of ${existing.dataType} has started processing.`,
+            type: "system",
+            priority: "medium",
+            relatedId: String(jobId),
+            relatedType: "dataImportExport",
+            isRead: false,
+            isArchived: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        if (oldStatus !== "completed" && newStatus === "completed") {
+          await ctx.db.insert("notifications", {
+            userId: existing.userId,
+            title: "Import/Export Completed",
+            message: `Your ${existing.operation} of ${
+              existing.dataType
+            } has completed. ${updateData.resultSummary || ""}`,
+            type: "system",
+            priority: "high",
+            relatedId: String(jobId),
+            relatedType: "dataImportExport",
+            isRead: false,
+            isArchived: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn(
+        "Failed to create notification on job update",
+        jobId,
+        notifErr
+      );
+    }
+
+    return patched;
   },
 });
 
@@ -407,7 +521,7 @@ export const exportDataNow = mutation({
 
     // Insert a completed job record for history
     const now = Date.now();
-    await ctx.db.insert("dataImportExport", {
+    const jobIdInserted = await ctx.db.insert("dataImportExport", {
       userId,
       operation: "export",
       dataType,
@@ -427,6 +541,24 @@ export const exportDataNow = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    try {
+      await ctx.db.insert("notifications", {
+        userId,
+        title: "Export Completed",
+        message: `Your export of ${dataType} is ready: ${fileName}`,
+        type: "system",
+        priority: "medium",
+        relatedId: String(jobIdInserted),
+        relatedType: "dataImportExport",
+        isRead: false,
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (e) {
+      console.warn("Failed to create export notification", e);
+    }
 
     return { csv, fileName };
   },

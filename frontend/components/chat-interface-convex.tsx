@@ -457,7 +457,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   return (
     <div className="flex flex-col h-full w-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-card flex-shrink-0">
+      <div className="flex items-center justify-between pt-6 pl-4 pr-4 pb-6 border-b bg-card flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
             <Bot className="h-5 w-5 text-primary" />
@@ -470,7 +470,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          ×
+          X
         </Button>
       </div>
 
@@ -478,7 +478,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="p-4">
-            <div className="space-y-4 max-w-4xl mx-auto">
+            <div className="space-y-6 max-w-4xl mx-auto">
               {dedupedMessages
                 .filter(message => 
                   // Filter out only title generation messages from display

@@ -128,3 +128,66 @@ export const deleteSession = mutation({
     return session._id;
   },
 });
+
+// Delete multiple sessions and their messages
+export const deleteSessions = mutation({
+  args: {
+    sessionIds: v.array(v.string()),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // For each sessionId, find session(s) for user and mark inactive and delete messages
+    for (const sessionId of args.sessionIds) {
+      const sessions = await ctx.db
+        .query("chatSessions")
+        .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
+        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .collect();
+
+      for (const session of sessions) {
+        // mark inactive
+        await ctx.db.patch(session._id, { isActive: false, updatedAt: Date.now() });
+
+        // delete messages belonging to this session
+        const messages = await ctx.db
+          .query("chatMessages")
+          .withIndex("by_session_id", (q) => q.eq("sessionId", session.sessionId))
+          .collect();
+
+        for (const m of messages) {
+          await ctx.db.delete(m._id);
+        }
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+// Delete all sessions and messages for a user
+export const deleteAllSessions = mutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    for (const session of sessions) {
+      await ctx.db.patch(session._id, { isActive: false, updatedAt: Date.now() });
+
+      const messages = await ctx.db
+        .query("chatMessages")
+        .withIndex("by_session_id", (q) => q.eq("sessionId", session.sessionId))
+        .collect();
+
+      for (const m of messages) {
+        await ctx.db.delete(m._id);
+      }
+    }
+
+    return { success: true };
+  },
+});
