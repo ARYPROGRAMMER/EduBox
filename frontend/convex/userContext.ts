@@ -21,12 +21,12 @@ export const getUserContext = query({
 
     // Get current and upcoming assignments (next 30 days)
     const now = Date.now();
-    const thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000);
-    
+    const thirtyDaysFromNow = now + 30 * 24 * 60 * 60 * 1000;
+
     const assignments = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("dueDate"), now),
           q.lte(q.field("dueDate"), thirtyDaysFromNow)
@@ -43,12 +43,12 @@ export const getUserContext = query({
       .take(20);
 
     // Get upcoming events (next 14 days)
-    const fourteenDaysFromNow = now + (14 * 24 * 60 * 60 * 1000);
-    
+    const fourteenDaysFromNow = now + 14 * 24 * 60 * 60 * 1000;
+
     const events = await ctx.db
       .query("events")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("startTime"), now),
           q.lte(q.field("startTime"), fourteenDaysFromNow)
@@ -58,12 +58,12 @@ export const getUserContext = query({
       .take(20);
 
     // Get recent files (last 30 days)
-    const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
-    
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
     const recentFiles = await ctx.db
       .query("files")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("createdAt"), thirtyDaysAgo),
           q.eq(q.field("isArchived"), false)
@@ -76,7 +76,7 @@ export const getUserContext = query({
     const grades = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.neq(q.field("grade"), undefined),
           q.eq(q.field("status"), "completed")
@@ -88,7 +88,7 @@ export const getUserContext = query({
     // Get campus life events (if available)
     const campusEvents = await ctx.db
       .query("campusLife")
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("category"), "event"),
           q.gte(q.field("startTime"), now)
@@ -99,11 +99,13 @@ export const getUserContext = query({
 
     // Calculate today's schedule
     const today = new Date();
-    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(); // Get day name
-    
-    const todayClasses = (courses || []).filter(course => 
-      course.schedule?.some(slot => 
-        slot.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase()
+    const dayOfWeek = today
+      .toLocaleDateString("en-US", { weekday: "long" })
+      .toLowerCase(); // Get day name
+
+    const todayClasses = (courses || []).filter((course) =>
+      course.schedule?.some(
+        (slot) => slot.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase()
       )
     );
 
@@ -111,7 +113,7 @@ export const getUserContext = query({
     const overdueAssignments = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.lt(q.field("dueDate"), now),
           q.neq(q.field("status"), "completed")
@@ -140,35 +142,37 @@ export const getUserContext = query({
       .first();
 
     // Get today's schedule from new schedule system
-    const todayDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-    
-    const todayCollegeClasses = (collegeSchedule || []).filter(cls => 
-      cls.dayOfWeek === todayDayName
+    const todayDayName = today.toLocaleDateString("en-US", { weekday: "long" });
+
+    const todayCollegeClasses = (collegeSchedule || []).filter(
+      (cls) => cls.dayOfWeek === todayDayName
     );
-    
-    const todayMeals = (diningSchedule || []).filter(meal => 
-      meal.dayOfWeek === todayDayName || meal.dayOfWeek === 'Daily'
+
+    const todayMeals = (diningSchedule || []).filter(
+      (meal) => meal.dayOfWeek === todayDayName || meal.dayOfWeek === "Daily"
     );
 
     return {
-      user: user ? {
-        name: user.fullName,
-        year: user.year,
-        major: user.major,
-        minor: user.minor,
-        gpa: user.gpa,
-        institution: user.institution,
-      } : null,
-      
+      user: user
+        ? {
+            name: user.fullName,
+            year: user.year,
+            major: user.major,
+            minor: user.minor,
+            gpa: user.gpa,
+            institution: user.institution,
+          }
+        : null,
+
       assignments: {
-        upcoming: assignments.map(a => ({
+        upcoming: assignments.map((a) => ({
           title: a.title,
           course: a.courseId,
           dueDate: a.dueDate,
           priority: a.priority,
           status: a.status,
         })),
-        overdue: overdueAssignments.map(a => ({
+        overdue: overdueAssignments.map((a) => ({
           title: a.title,
           course: a.courseId,
           dueDate: a.dueDate,
@@ -176,7 +180,7 @@ export const getUserContext = query({
         })),
       },
 
-      courses: courses.map(c => ({
+      courses: courses.map((c) => ({
         code: c.courseCode,
         name: c.courseName,
         instructor: c.instructor,
@@ -185,15 +189,15 @@ export const getUserContext = query({
         schedule: c.schedule,
       })),
 
-      todaySchedule: todayClasses.map(c => ({
+      todaySchedule: todayClasses.map((c) => ({
         course: c.courseCode,
         name: c.courseName,
-        schedule: c.schedule?.filter(s => 
-          s.dayOfWeek.toLowerCase() === dayOfWeek.toLowerCase()
+        schedule: c.schedule?.filter(
+          (s) => s.dayOfWeek.toLowerCase() === dayOfWeek.toLowerCase()
         ),
       })),
 
-      events: events.map(e => ({
+      events: events.map((e) => ({
         title: e.title,
         type: e.type,
         startTime: e.startTime,
@@ -202,7 +206,7 @@ export const getUserContext = query({
         description: e.description,
       })),
 
-      recentFiles: recentFiles.map(f => ({
+      recentFiles: recentFiles.map((f) => ({
         name: f.fileName,
         category: f.category,
         subject: f.subject,
@@ -211,7 +215,7 @@ export const getUserContext = query({
       })),
 
       performance: {
-        recentGrades: grades.map(g => ({
+        recentGrades: grades.map((g) => ({
           assignment: g.title,
           course: g.courseId,
           grade: g.grade,
@@ -221,7 +225,7 @@ export const getUserContext = query({
         currentGPA: user?.gpa,
       },
 
-      campusLife: campusEvents.map(e => ({
+      campusLife: campusEvents.map((e) => ({
         title: e.title,
         category: e.category,
         startTime: e.startTime,
@@ -238,7 +242,7 @@ export const getUserContext = query({
 
       // Schedule data
       schedule: {
-        college: collegeSchedule.map(cls => ({
+        college: collegeSchedule.map((cls) => ({
           subject: cls.subject,
           code: cls.code,
           instructor: cls.instructor,
@@ -249,8 +253,8 @@ export const getUserContext = query({
           semester: cls.semester,
           credits: cls.credits,
         })),
-        
-        dining: diningSchedule.map(meal => ({
+
+        dining: diningSchedule.map((meal) => ({
           mealType: meal.mealType,
           location: meal.location,
           dayOfWeek: meal.dayOfWeek,
@@ -258,17 +262,19 @@ export const getUserContext = query({
           endTime: meal.endTime,
           specialNotes: meal.specialNotes,
         })),
-        
-        preferences: schedulePreferences ? {
-          defaultMealCount: schedulePreferences.defaultMealCount,
-          mealTypes: schedulePreferences.mealTypes,
-          showDiningInCalendar: schedulePreferences.showDiningInCalendar,
-          showClassesInCalendar: schedulePreferences.showClassesInCalendar,
-          scheduleViewMode: schedulePreferences.scheduleViewMode,
-        } : null,
-        
+
+        preferences: schedulePreferences
+          ? {
+              defaultMealCount: schedulePreferences.defaultMealCount,
+              mealTypes: schedulePreferences.mealTypes,
+              showDiningInCalendar: schedulePreferences.showDiningInCalendar,
+              showClassesInCalendar: schedulePreferences.showClassesInCalendar,
+              scheduleViewMode: schedulePreferences.scheduleViewMode,
+            }
+          : null,
+
         today: {
-          classes: todayCollegeClasses.map(cls => ({
+          classes: todayCollegeClasses.map((cls) => ({
             subject: cls.subject,
             code: cls.code,
             startTime: cls.startTime,
@@ -276,7 +282,7 @@ export const getUserContext = query({
             location: cls.location,
             instructor: cls.instructor,
           })),
-          meals: todayMeals.map(meal => ({
+          meals: todayMeals.map((meal) => ({
             mealType: meal.mealType,
             startTime: meal.startTime,
             endTime: meal.endTime,
@@ -295,17 +301,21 @@ export const getTodayContext = query({
   },
   handler: async (ctx, args) => {
     const { userId } = args;
-    
+
     // Get today's date boundaries
     const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    const endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1;
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ).getTime();
+    const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
 
     // Assignments due today
     const assignmentsDueToday = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("dueDate"), startOfDay),
           q.lte(q.field("dueDate"), endOfDay)
@@ -317,7 +327,7 @@ export const getTodayContext = query({
     const eventsToday = await ctx.db
       .query("events")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("startTime"), startOfDay),
           q.lte(q.field("startTime"), endOfDay)
@@ -326,14 +336,14 @@ export const getTodayContext = query({
       .collect();
 
     return {
-      assignmentsDueToday: assignmentsDueToday.map(a => ({
+      assignmentsDueToday: assignmentsDueToday.map((a) => ({
         title: a.title,
         course: a.courseId,
         priority: a.priority,
         status: a.status,
       })),
-      
-      eventsToday: eventsToday.map(e => ({
+
+      eventsToday: eventsToday.map((e) => ({
         title: e.title,
         type: e.type,
         startTime: e.startTime,
@@ -360,26 +370,35 @@ export const getImportExportStatus = query({
       .take(50);
 
     // Get recent successful imports by type
-    const recentImports = jobs.filter(job => 
-      job.operation === "import" && 
-      job.status === "completed" &&
-      job.completedAt && 
-      job.completedAt > (Date.now() - (7 * 24 * 60 * 60 * 1000)) // Last 7 days
+    const recentImports = jobs.filter(
+      (job) =>
+        job.operation === "import" &&
+        job.status === "completed" &&
+        job.completedAt &&
+        job.completedAt > Date.now() - 7 * 24 * 60 * 60 * 1000 // Last 7 days
     );
 
-    // Get pending/processing jobs
-    const activeJobs = jobs.filter(job => 
-      job.status === "pending" || job.status === "processing"
+    // Get pending/processing import jobs (ignore export jobs so exports don't block imports)
+    const activeJobs = jobs.filter(
+      (job) =>
+        job.operation === "import" &&
+        (job.status === "pending" || job.status === "processing")
     );
 
     // Calculate import statistics
     const importStats = {
-      totalImports: jobs.filter(job => job.operation === "import").length,
-      totalExports: jobs.filter(job => job.operation === "export").length,
-      successfulImports: jobs.filter(job => job.operation === "import" && job.status === "completed").length,
-      failedImports: jobs.filter(job => job.operation === "import" && job.status === "failed").length,
+      totalImports: jobs.filter((job) => job.operation === "import").length,
+      totalExports: jobs.filter((job) => job.operation === "export").length,
+      successfulImports: jobs.filter(
+        (job) => job.operation === "import" && job.status === "completed"
+      ).length,
+      failedImports: jobs.filter(
+        (job) => job.operation === "import" && job.status === "failed"
+      ).length,
       totalRecordsImported: jobs
-        .filter(job => job.operation === "import" && job.status === "completed")
+        .filter(
+          (job) => job.operation === "import" && job.status === "completed"
+        )
         .reduce((sum, job) => sum + (job.recordsSuccessful || 0), 0),
     };
 
@@ -396,7 +415,7 @@ export const getImportExportStatus = query({
       activeJobs,
       importStats,
       jobsByType,
-      readyForImport: activeJobs.length === 0, // Can start new import if no active jobs
+      readyForImport: activeJobs.length === 0, // Can start new import if no active import jobs
     };
   },
 });
@@ -410,9 +429,9 @@ export const getPreloadedAnalytics = query({
     const { userId } = args;
 
     // Get analytics for different time periods
-    const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const last30Days = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    const last90Days = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    const last7Days = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const last30Days = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const last90Days = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
     // Get study sessions for all periods
     const allStudySessions = await ctx.db
@@ -421,7 +440,7 @@ export const getPreloadedAnalytics = query({
       .filter((q) => q.gte(q.field("startTime"), last90Days))
       .collect();
 
-    // Get grade history for all periods  
+    // Get grade history for all periods
     const allGrades = await ctx.db
       .query("gradeHistory")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
@@ -437,19 +456,36 @@ export const getPreloadedAnalytics = query({
 
     // Process data for different time periods
     const processForPeriod = (startDate: number) => {
-      const studySessions = allStudySessions.filter(s => s.startTime >= startDate);
-      const grades = allGrades.filter(g => g.dateGraded >= startDate);
-      const assignments = allAssignments.filter(a => a.dueDate >= startDate);
+      const studySessions = allStudySessions.filter(
+        (s) => s.startTime >= startDate
+      );
+      const grades = allGrades.filter((g) => g.dateGraded >= startDate);
+      const assignments = allAssignments.filter((a) => a.dueDate >= startDate);
 
-      const totalStudyHours = studySessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
-      const averageFocusScore = studySessions.length > 0 
-        ? studySessions.reduce((sum, session) => sum + (session.focusScore || 0), 0) / studySessions.length
-        : 0;
-      const averageGrade = grades.length > 0
-        ? grades.reduce((sum, grade) => sum + (grade.numericGrade || 0), 0) / grades.length
-        : 0;
-      const completedAssignments = assignments.filter(a => a.status === "submitted" || a.status === "graded").length;
-      const completionRate = assignments.length > 0 ? (completedAssignments / assignments.length) * 100 : 0;
+      const totalStudyHours =
+        studySessions.reduce(
+          (sum, session) => sum + (session.duration || 0),
+          0
+        ) / 60;
+      const averageFocusScore =
+        studySessions.length > 0
+          ? studySessions.reduce(
+              (sum, session) => sum + (session.focusScore || 0),
+              0
+            ) / studySessions.length
+          : 0;
+      const averageGrade =
+        grades.length > 0
+          ? grades.reduce((sum, grade) => sum + (grade.numericGrade || 0), 0) /
+            grades.length
+          : 0;
+      const completedAssignments = assignments.filter(
+        (a) => a.status === "submitted" || a.status === "graded"
+      ).length;
+      const completionRate =
+        assignments.length > 0
+          ? (completedAssignments / assignments.length) * 100
+          : 0;
 
       return {
         totalStudyHours: Math.round(totalStudyHours * 10) / 10,

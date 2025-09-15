@@ -73,6 +73,7 @@ const themeOptions = [
 ];
 
 const timezoneOptions = [
+  { value: "Asia/Kolkata", label: "India Standard Time (IST)" },
   { value: "America/New_York", label: "Eastern Time (ET)" },
   { value: "America/Chicago", label: "Central Time (CT)" },
   { value: "America/Denver", label: "Mountain Time (MT)" },
@@ -84,7 +85,7 @@ const timezoneOptions = [
   { value: "Europe/Moscow", label: "Moscow Time (MSK)" },
   { value: "Asia/Tokyo", label: "Japan Standard Time (JST)" },
   { value: "Asia/Shanghai", label: "China Standard Time (CST)" },
-  { value: "Asia/Kolkata", label: "India Standard Time (IST)" },
+
   { value: "Australia/Sydney", label: "Australian Eastern Time (AET)" },
   { value: "UTC", label: "Coordinated Universal Time (UTC)" },
 ];

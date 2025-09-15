@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -54,14 +54,72 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const [mounted, setMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Keep previous open state so we can restore it after leaving chat
+  const [prevSidebarOpen, setPrevSidebarOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    if (window.innerWidth >= 1024) setIsSidebarOpen(true);
-    const onResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
+
+    // Compute whether the chat subroutes are active (exact to dashboard/chat)
+    const isChatRoute = pathname?.startsWith("/dashboard/chat");
+
+    setIsSidebarOpen(window.innerWidth >= 1024 && !isChatRoute);
+
+    const onResize = () => {
+      // Resize should update sidebar openness based on viewport width.
+      // We no longer block reopening on chat pages so users can open the
+      // sidebar manually or by resizing to a wide viewport.
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    };
+
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+    // We intentionally don't include isChatRoute here because it's derived
+    // from pathname which is already in deps. Keep pathname as the dep.
+  }, [pathname]);
+
+  // If the Ask AI/chat pages are active we want the sidebar hidden immediately
+  // (no animation) to provide a full-width chat experience. Derive this flag
+  // from the pathname so changes are reactive to navigation.
+  // Only treat routes under /dashboard/chat as chat-active. This avoids
+  // false-positives from other parts of the site that might include "chat"
+  // in their path.
+  const isChatActive = pathname?.startsWith("/dashboard/chat");
+
+  // Track previous chat-active state so we only run the enter/leave logic on
+  // actual route transitions. This prevents user toggles while on a chat
+  // route from being overridden by the effect.
+  const prevIsChatRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const prevIsChat = prevIsChatRef.current;
+
+    // If previous is null, this is the initial mount — handle initial
+    // landing on the chat page via the mount logic above (so skip here).
+    if (prevIsChat === null) {
+      prevIsChatRef.current = !!isChatActive;
+      return;
+    }
+
+    // Only run when there's an actual transition (entering or leaving chat)
+    if (!prevIsChat && isChatActive) {
+      // Entering chat: save previous state and close
+      setPrevSidebarOpen((prev) => (prev === null ? isSidebarOpen : prev));
+      setIsSidebarOpen(false);
+    } else if (prevIsChat && !isChatActive) {
+      // Leaving chat: restore if we previously saved a state
+      if (prevSidebarOpen !== null) {
+        setIsSidebarOpen(prevSidebarOpen);
+        setPrevSidebarOpen(null);
+      }
+    }
+
+    prevIsChatRef.current = !!isChatActive;
+    // Intentionally excluding isSidebarOpen and prevSidebarOpen from deps to
+    // avoid re-running when they change due to user toggles; we're only
+    // interested in pathname transitions which update isChatActive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatActive]);
 
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: Home },
@@ -73,12 +131,42 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   const premiumNavItems = [
-    { name: "AI Study Assistant", href: "/dashboard/ai-study-assistant", icon: GraduationCap, premium: true },
-    { name: "AI Content Generation", href: "/dashboard/ai-content-generation", icon: Plus, premium: true },
-    { name: "Campus Integration", href: "/dashboard/campus-integration", icon: Building, premium: true },
-    { name: "Collaboration Hub", href: "/dashboard/collaboration", icon: Users, premium: true },
-    { name: "Cloud Storage Sync", href: "/dashboard/cloud-storage", icon: Cloud, premium: true },
-    { name: "Data Import/Export", href: "/dashboard/import-export", icon: Upload, premium: true },
+    {
+      name: "AI Study Assistant",
+      href: "/dashboard/ai-study-assistant",
+      icon: GraduationCap,
+      premium: true,
+    },
+    {
+      name: "AI Content Generation",
+      href: "/dashboard/ai-content-generation",
+      icon: Plus,
+      premium: true,
+    },
+    // {
+    //   name: "Campus Integration",
+    //   href: "/dashboard/campus-integration",
+    //   icon: Building,
+    //   premium: true,
+    // },
+    // {
+    //   name: "Collaboration Hub",
+    //   href: "/dashboard/collaboration",
+    //   icon: Users,
+    //   premium: true,
+    // },
+    // {
+    //   name: "Cloud Storage Sync",
+    //   href: "/dashboard/cloud-storage",
+    //   icon: Cloud,
+    //   premium: true,
+    // },
+    {
+      name: "Data Import/Export",
+      href: "/dashboard/import-export",
+      icon: Upload,
+      premium: true,
+    },
   ];
 
   const activeGradient =
@@ -87,6 +175,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       : "from-emerald-500/80 via-teal-600/80 to-green-600/80";
 
   // Use exact pixel widths so main content margin matches sidebar width precisely
+  // When the chat is active, force the sidebar to its collapsed width (80)
+  // immediately by skipping the transition on width/margin.
   const sidebarWidth = isSidebarOpen ? 280 : 80;
 
   return (
@@ -95,7 +185,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-400/5 via-transparent to-transparent dark:from-gray-500/5" />
 
       {/* overlay for mobile */}
-      {mounted && isSidebarOpen && (
+      {mounted && isSidebarOpen && !isChatActive && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.4 }}
@@ -111,7 +201,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           "fixed left-0 top-0 z-30 h-full flex flex-col border-r backdrop-blur-xl",
           "bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 shadow-xl"
         )}
-        style={{ width: sidebarWidth, transition: "width 300ms ease" }}
+        style={{
+          width: sidebarWidth,
+          transition: isChatActive ? "none" : "width 300ms ease",
+        }}
       >
         {/* header/logo */}
         <div className="relative flex items-center justify-between px-4 py-5 border-b border-slate-200 dark:border-slate-700">
@@ -127,8 +220,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             {isSidebarOpen && (
               <div>
-                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">EduBox</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400">AI Digital Locker</p>
+                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  EduBox
+                </h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  AI Digital Locker
+                </p>
               </div>
             )}
           </div>
@@ -151,14 +248,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       variant="ghost"
                       className={cn(
                         "w-full h-12 rounded-xl flex items-center",
-                        isSidebarOpen ? "justify-start px-4" : "justify-center px-0",
+                        isSidebarOpen
+                          ? "justify-start px-4"
+                          : "justify-center px-0",
                         active
                           ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
                           : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
                       )}
                     >
-                      <Icon className={cn("w-5 h-5", active && "text-white", isSidebarOpen && "mr-3")} />
-                      {isSidebarOpen && <span className="font-medium">{item.name}</span>}
+                      <Icon
+                        className={cn(
+                          "w-5 h-5",
+                          active && "text-white",
+                          isSidebarOpen && "mr-3"
+                        )}
+                      />
+                      {isSidebarOpen && (
+                        <span className="font-medium">{item.name}</span>
+                      )}
                     </Button>
                   </motion.div>
                 </Link>
@@ -184,17 +291,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       variant="ghost"
                       className={cn(
                         "w-full h-12 rounded-xl flex items-center",
-                        isSidebarOpen ? "justify-start px-4" : "justify-center px-0",
+                        isSidebarOpen
+                          ? "justify-start px-4"
+                          : "justify-center px-0",
                         active
                           ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
                           : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
                       )}
                     >
-                      <Icon className={cn("w-5 h-5", active && "text-white", isSidebarOpen && "mr-3")} />
+                      <Icon
+                        className={cn(
+                          "w-5 h-5",
+                          active && "text-white",
+                          isSidebarOpen && "mr-3"
+                        )}
+                      />
                       {isSidebarOpen && (
                         <>
-                          <span className="font-medium flex-1 text-left">{item.name}</span>
-                              <Crown className="w-4 h-4" />
+                          <span className="font-medium flex-1 text-left">
+                            {item.name}
+                          </span>
+                          <Crown className="w-4 h-4" />
                         </>
                       )}
                     </Button>
@@ -218,8 +335,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.fullName || "Student"}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.primaryEmailAddress?.emailAddress || "student@edu.com"}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                      {user?.fullName || "Student"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {user?.primaryEmailAddress?.emailAddress ||
+                        "student@edu.com"}
+                    </p>
                   </div>
                 </div>
               )}
@@ -231,18 +353,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {theme === "dark" ? (
+                    <Sun className="w-4 h-4" />
+                  ) : (
+                    <Moon className="w-4 h-4" />
+                  )}
                 </Button>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-lg hover:bg-slate-100/40 dark:hover:bg-slate-700/40"
+                    >
                       <Settings className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard/profile" className="cursor-pointer">
+                      <Link
+                        href="/dashboard/profile"
+                        className="cursor-pointer"
+                      >
                         <User className="w-4 h-4 mr-2" />
                         Profile Settings
                       </Link>
@@ -281,14 +414,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* main content */}
       <main
         className="flex-1 flex flex-col h-full"
-        style={{ marginLeft: sidebarWidth, transition: "margin-left 300ms ease" }}
+        style={{
+          marginLeft: sidebarWidth,
+          transition: "margin-left 300ms ease",
+        }}
       >
         {/* <DashboardHeader isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} mounted={mounted} /> */}
-       
-       
-       
-        <div className={cn("flex-1 h-full", pathname?.includes('/chat') ? "flex w-full" : "overflow-auto")}>
-          {pathname?.includes('/chat') ? (
+
+        <div
+          className={cn(
+            "flex-1 h-full",
+            pathname?.startsWith("/dashboard/chat")
+              ? "flex w-full"
+              : "overflow-auto"
+          )}
+        >
+          {pathname?.startsWith("/dashboard/chat") ? (
             // Chat pages need full height and width without padding
             <div className="w-full h-full">{children}</div>
           ) : (
@@ -296,9 +437,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="p-6">{children}</div>
           )}
         </div>
-        
-  
-
       </main>
     </div>
   );

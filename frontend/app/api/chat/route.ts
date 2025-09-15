@@ -3,7 +3,8 @@ import { generateText, streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
 import { ChatRequest, ChatResponse } from "@/types/types";
-import { client } from "@/lib/schematic";
+import { getConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
 
 // Initialize Gemini model
 const model = google("gemini-1.5-flash");
@@ -243,7 +244,63 @@ Current time: ${new Date().toLocaleString()}`;
         maxRetries: 3,
       });
 
-      return result.toTextStreamResponse();
+      // Build a ReadableStream that pipes model chunks to the client and
+      // also accumulates the full text so we can persist it to Convex.
+      const streamBody = result.toTextStreamResponse().body;
+      if (!streamBody) {
+        return NextResponse.json({ error: "No stream body" }, { status: 500 });
+      }
+
+      const reader = streamBody.getReader();
+      const encoder = new TextEncoder();
+
+      let assembled = "";
+
+      const proxyStream = new ReadableStream({
+        async start(controller) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunkText =
+                typeof value === "string"
+                  ? value
+                  : new TextDecoder().decode(value);
+              assembled += chunkText;
+              controller.enqueue(encoder.encode(chunkText));
+            }
+            controller.close();
+
+            // Persist final assistant message to Convex if user is authenticated
+            if (userId) {
+              try {
+                const convex = getConvexClient();
+                await convex.mutation(api.chatMessages.addMessage, {
+                  sessionId,
+                  userId,
+                  message: assembled,
+                  role: "assistant",
+                  messageIndex: 0, // consumer should update index
+                });
+              } catch (persistErr) {
+                console.error(
+                  "Failed to persist streamed assistant message:",
+                  persistErr
+                );
+              }
+            }
+          } catch (streamErr) {
+            console.error("Stream read error:", streamErr);
+            try {
+              controller.error(streamErr);
+            } catch (_) {}
+          }
+        },
+      });
+
+      return new NextResponse(proxyStream, {
+        headers: { "Content-Type": "text/stream; charset=utf-8" },
+      });
     } else {
       // Use regular response for API calls
       const result = await generateText({
@@ -266,8 +323,8 @@ Current time: ${new Date().toLocaleString()}`;
       //   // Don't fail the request if tracking fails
       // }
 
-      // Generate smart suggestions based on the response
-      const suggestions = generateSuggestions(message, result.text);
+  // Generate smart suggestions based on the response using the Gemini model
+  const suggestions = await generateSuggestions(message, result.text);
 
       const response: ChatResponse = {
         message: result.text,
@@ -279,6 +336,20 @@ Current time: ${new Date().toLocaleString()}`;
           timestamp: Date.now(),
         },
       };
+
+      // Persist in Convex the non-streamed assistant response
+      try {
+        const convex = getConvexClient();
+        await convex.mutation(api.chatMessages.addMessage, {
+          sessionId,
+          userId,
+          message: result.text,
+          role: "assistant",
+          messageIndex: 0,
+        });
+      } catch (persistError) {
+        console.error("Failed to persist assistant message:", persistError);
+      }
 
       return NextResponse.json(response);
     }
@@ -295,79 +366,77 @@ Current time: ${new Date().toLocaleString()}`;
   }
 }
 
-function generateSuggestions(
+async function generateSuggestions(
   userMessage: string,
   aiResponse: string
-): string[] {
-  const message = userMessage.toLowerCase();
-  const response = aiResponse.toLowerCase();
+): Promise<string[]> {
+  try {
+    const prompt = `You are a helpful assistant that suggests up to 3 short, actionable follow-up queries or actions a student can take after a conversation. Return the suggestions as a JSON array of strings only (for example: ["Show my calendar for today","Find free time for studying"]).\n\nUser message: ${userMessage}\nAssistant response: ${aiResponse}\n\nGuidelines: Keep suggestions short (max 6 words), focused on academic actions (schedules, assignments, files, study help), and return 1-3 unique suggestions.`;
 
-  const suggestions: string[] = [];
+    const result = await generateText({
+      model,
+      messages: [
+        { role: "system" as const, content: "You generate concise follow-up suggestion lists as JSON arrays." },
+        { role: "user" as const, content: prompt },
+      ],
+      temperature: 0.35,
+      maxRetries: 2,
+    });
 
-  // Assignment-related suggestions
-  if (
-    message.includes("assignment") ||
-    message.includes("homework") ||
-    message.includes("due")
-  ) {
-    suggestions.push("Show me all upcoming deadlines");
-    suggestions.push("Create a study schedule");
-    suggestions.push("Set reminders for this assignment");
+    const raw = result?.text?.trim() || "";
+
+    const extractArray = (text: string): string[] | null => {
+      if (!text) return null;
+      let s = text.trim();
+      s = s.replace(/```[\s\S]*?```/g, (m) => m.replace(/```/g, ''));
+      s = s.replace(/^\s*```?\w*\s*/i, '').replace(/```\s*$/i, '').trim();
+
+      try {
+        const p = JSON.parse(s);
+        if (Array.isArray(p)) return p.map((x) => String(x));
+      } catch (_) {}
+
+      const firstIdx = s.indexOf('[');
+      if (firstIdx === -1) return null;
+      let depth = 0;
+      for (let i = firstIdx; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === '[') depth++;
+        else if (ch === ']') {
+          depth--;
+          if (depth === 0) {
+            const candidate = s.slice(firstIdx, i + 1);
+            try {
+              const parsed = JSON.parse(candidate);
+              if (Array.isArray(parsed)) return parsed.map((x) => String(x));
+            } catch (_) {}
+            break;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const parsedArray = extractArray(raw);
+    let suggestions: string[] = [];
+    if (parsedArray) {
+      suggestions = parsedArray.slice(0, 3).map((s) => s.trim()).filter(Boolean);
+    } else {
+      // fallback to splitting lines and removing stray tokens
+      suggestions = raw
+        .split(/\r?\n/) // prefer lines
+        .map((l) => l.replace(/^\s*-\s*/, '').trim())
+        .map((l) => l.replace(/^['\"]+|['\"]+$/g, ''))
+        .filter((l) => l && !/^`+|^\[+$|^\]+$|^json$/i.test(l))
+        .slice(0, 3);
+    }
+
+    return Array.from(new Set(suggestions));
+  } catch (err) {
+    console.error("Suggestion generation error:", err);
+    return [];
   }
-
-  // Schedule-related suggestions
-  if (
-    message.includes("schedule") ||
-    message.includes("time") ||
-    message.includes("when")
-  ) {
-    suggestions.push("Show my calendar for today");
-    suggestions.push("Find free time for studying");
-    suggestions.push("Create a new event");
-  }
-
-  // Course-related suggestions
-  if (
-    message.includes("course") ||
-    message.includes("class") ||
-    message.includes("grade")
-  ) {
-    suggestions.push("Show my GPA progress");
-    suggestions.push("View course materials");
-    suggestions.push("Track attendance");
-  }
-
-  // File-related suggestions
-  if (
-    message.includes("file") ||
-    message.includes("note") ||
-    message.includes("document")
-  ) {
-    suggestions.push("Upload a new file");
-    suggestions.push("Search my files");
-    suggestions.push("Organize files by course");
-  }
-
-  // Study-related suggestions
-  if (
-    message.includes("study") ||
-    message.includes("exam") ||
-    message.includes("test")
-  ) {
-    suggestions.push("Start a study session");
-    suggestions.push("Create study flashcards");
-    suggestions.push("Find study groups");
-  }
-
-  // Default suggestions if none match
-  if (suggestions.length === 0) {
-    suggestions.push("What's due this week?");
-    suggestions.push("Show my schedule");
-    suggestions.push("Help me plan my day");
-  }
-
-  // Limit to 3 suggestions and ensure uniqueness
-  return [...new Set(suggestions)].slice(0, 3);
 }
 
 // Handle CORS for development

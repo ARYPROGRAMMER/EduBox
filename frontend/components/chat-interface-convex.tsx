@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from "react-markdown";
 import { useConvexUser } from "@/hooks/use-convex-user";
 import { useFeatureGate } from "@/components/feature-gate";
 import { FeatureFlag } from "@/features/flag";
@@ -25,20 +25,22 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { startUserContextPrefetch } from '@/lib/prefetch';
+import { startUserContextPrefetch } from "@/lib/prefetch";
 
 interface ChatInterfaceProps {
   onClose: () => void;
   sessionId?: string;
 }
 
-const quickSuggestions = [
+const fallbackQuickSuggestions = [
   "What's due tomorrow?",
   "Find my biology notes from last week",
   "Do I have time to hit the gym before physics class?",
   "What's for lunch today?",
   "When is the next photography club meeting?",
 ];
+
+// We will fetch model-generated starter suggestions and fall back to the static list
 
 export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   const { user: convexUser } = useConvexUser();
@@ -53,6 +55,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [streamingText, setStreamingText] = useState<string>("");
+  const [starterSuggestions, setStarterSuggestions] = useState<string[] | null>(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +71,20 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     api.chatSessions.getChatSession,
     sessionId && convexUser ? { sessionId, userId: convexUser.clerkId } : "skip"
   );
+
+  const createSession = useMutation(api.chatSessions.createChatSession);
+  const updateSession = useMutation(api.chatSessions.updateSession);
+  const addMessage = useMutation(api.chatMessages.addMessage);
+
+  // Dedup + filter messages like the original
+  const dedupedMessages = (messages || []).filter(
+    (m, i, arr) =>
+      arr.findIndex(
+        (x) =>
+          `${x.role}-${x.timestamp}-${x.message.slice(0, 40)}` ===
+          `${m.role}-${m.timestamp}-${m.message.slice(0, 40)}`
+      ) === i
+  ) || [];
 
   // Get comprehensive user context for AI (with latest data)
   const userContext = useQuery(
@@ -85,22 +104,80 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     convexUser ? { clerkId: convexUser.clerkId } : "skip"
   );
 
-  const createSession = useMutation(api.chatSessions.createChatSession);
-  const updateSession = useMutation(api.chatSessions.updateSession);
-  const addMessage = useMutation(api.chatMessages.addMessage);
-
   // Auto-focus input when component mounts and refresh context
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
-
     // Ensure we have fresh user data when starting a chat session
     if (convexUser && sessionId && !chatSession) {
       // Context will be automatically refreshed by Convex reactivity
-      // debug logging intentionally removed
     }
   }, [sessionId, convexUser, chatSession]);
+
+  // Fetch model-generated starter suggestions when the component mounts or when user context becomes available
+  useEffect(() => {
+    let mounted = true;
+    const fetchSuggestions = async () => {
+      setLoadingSuggestions(true);
+      try {
+        const contextSummary = JSON.stringify({
+          // provide a lightweight summary to the suggestions endpoint
+          user: latestUserProfile?.fullName ? { name: latestUserProfile.fullName } : null,
+          stats: userContext?.statistics || {},
+        });
+
+        // Try localStorage cache first (one call per user login/session)
+        const userKey = convexUser?.clerkId || "anon";
+        const storageKey = `edubox:chat:suggestions:${userKey}`;
+        const rawStored = localStorage.getItem(storageKey);
+        if (rawStored) {
+          try {
+            const parsed = JSON.parse(rawStored);
+            // Simple TTL check (stored as { suggestions, ts })
+            if (parsed?.ts && Date.now() - parsed.ts < 1000 * 60 * 60 * 6) {
+              setStarterSuggestions(parsed.suggestions || fallbackQuickSuggestions.slice(0, 5));
+              setLoadingSuggestions(false);
+              return;
+            }
+          } catch (_) {}
+        }
+
+        const res = await fetch("/api/chat/suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contextSummary }),
+        });
+
+        if (!mounted) return;
+        if (!res.ok) {
+          setStarterSuggestions(fallbackQuickSuggestions.slice(0, 5));
+          return;
+        }
+
+        const data = await res.json();
+        const suggestions = Array.isArray(data?.suggestions)
+          ? data.suggestions.map((s: any) => String(s))
+          : fallbackQuickSuggestions.slice(0, 5);
+
+        setStarterSuggestions(suggestions.length ? suggestions : fallbackQuickSuggestions.slice(0, 5));
+        try {
+          localStorage.setItem(storageKey, JSON.stringify({ suggestions, ts: Date.now() }));
+        } catch (_) {}
+      } catch (e) {
+        setStarterSuggestions(fallbackQuickSuggestions.slice(0, 5));
+      } finally {
+        if (mounted) setLoadingSuggestions(false);
+      }
+    };
+
+    // Only fetch once per component mount
+    fetchSuggestions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [latestUserProfile, userContext]);
 
   // Prefetch user context using shared helper to avoid duplicate intervals
   useEffect(() => {
@@ -109,12 +186,15 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     let stop: (() => void) | undefined;
 
     const onUpdate = (_data: any) => {
-      // noop for chat component; prefetch warms server cache
       if (!mounted) return;
     };
 
     (async () => {
-      stop = await startUserContextPrefetch(convexUser.clerkId, onUpdate, 300_000);
+      stop = await startUserContextPrefetch(
+        convexUser.clerkId,
+        onUpdate,
+        60_000
+      );
     })();
 
     return () => {
@@ -123,8 +203,41 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     };
   }, [convexUser]);
 
+  // Scroll only when a new saved message arrives or typing begins
+  const prevLen = useRef(0);
+  const prevTyping = useRef(false);
+  useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLElement | null;
+    if (!viewport) return;
+
+    const scrollBottom = () => viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: "smooth"
+    });
+
+    if (dedupedMessages.length > prevLen.current) {
+      scrollBottom();
+      prevLen.current = dedupedMessages.length;
+    } else if (isTyping && !prevTyping.current) {
+      scrollBottom();
+    }
+    prevTyping.current = isTyping;
+  }, [dedupedMessages.length, isTyping]);
+
+  // Clear the transient stream only when the persisted assistant message covers it
+  useEffect(() => {
+    if (!streamingText) return;
+    const last = [...dedupedMessages].reverse().find((m) => m.role === "assistant");
+    if (last && last.message.startsWith(streamingText.slice(0, 40))) {
+      setStreamingText("");
+      setIsTyping(false);
+    }
+  }, [dedupedMessages, streamingText]);
+
   // Create session if it doesn't exist but only when we have messages or are sending one
-  const ensureSessionExists = async () => {
+  const ensureSession = async () => {
     if (sessionId && convexUser && !chatSession) {
       await createSession({
         userId: convexUser.clerkId,
@@ -133,48 +246,6 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       });
     }
   };
-
-  // Improved auto-scroll with smooth behavior and better timing
-  useEffect(() => {
-    const scrollToBottom = () => {
-      if (scrollAreaRef.current) {
-        const scrollContainer = scrollAreaRef.current.querySelector(
-          "[data-radix-scroll-area-viewport]"
-        );
-        if (scrollContainer) {
-          // Use requestAnimationFrame for smooth scrolling
-          requestAnimationFrame(() => {
-            scrollContainer.scrollTo({
-              top: scrollContainer.scrollHeight,
-              behavior: "smooth",
-            });
-          });
-        }
-      }
-    };
-
-    // Scroll when messages change or when typing indicator appears/disappears
-    if (messages || isTyping) {
-      scrollToBottom();
-    }
-  }, [messages, isTyping]);
-
-  // Additional scroll when user sends a message
-  useEffect(() => {
-    if (isSending) {
-      const scrollContainer = scrollAreaRef.current?.querySelector(
-        "[data-radix-scroll-area-viewport]"
-      );
-      if (scrollContainer) {
-        setTimeout(() => {
-          scrollContainer.scrollTo({
-            top: scrollContainer.scrollHeight,
-            behavior: "smooth",
-          });
-        }, 100);
-      }
-    }
-  }, [isSending]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isSending || !sessionId || !convexUser) return;
@@ -189,7 +260,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
 
     // Check usage limit
     if (hasReachedLimit) {
-      toast.error("You have reached your AI chat limit. Please upgrade your plan to continue.");
+      toast.error(
+        "You have reached your AI chat limit. Please upgrade your plan to continue."
+      );
       return;
     }
 
@@ -197,10 +270,8 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     setIsSending(true);
 
     try {
-      // Ensure session exists before sending message
-      await ensureSessionExists();
+      await ensureSession();
 
-      // Add user message
       const messageIndex = messages?.length || 0;
       await addMessage({
         sessionId,
@@ -210,10 +281,13 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
         messageIndex,
       });
 
-      // Generate an AI-produced concise title for this question and update the session title
+      // Title generation (non-blocking)
       (async () => {
         try {
-          const generatedTitle = await generateTitleFromQuestion(content.trim(), sessionId);
+          const generatedTitle = await generateTitleFromQuestion(
+            content.trim(),
+            sessionId
+          );
           if (generatedTitle && generatedTitle.trim()) {
             await updateSession({
               sessionId,
@@ -223,16 +297,14 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
             return;
           }
         } catch (e) {
-          // ignore and fallback to first-message heuristic below
+          // fallback
         }
 
-        // Fallback for the very first message: use a snippet of the content
         if (messageIndex === 0) {
           const title =
             content.trim().length > 50
               ? content.trim().substring(0, 50) + "..."
               : content.trim();
-
           try {
             await updateSession({
               sessionId,
@@ -240,74 +312,32 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
               updates: { title },
             });
           } catch (e) {
-            // non-fatal
+            // ignore
           }
         }
       })();
 
       setIsTyping(true);
+      setStreamingText("");
 
-      // Get AI response from real Gemini API
-      try {
-        const aiResponse = await generateAIResponse(content.trim(), sessionId);
-        await addMessage({
-          sessionId,
-          userId: convexUser.clerkId,
-          message: aiResponse,
-          role: "assistant",
-          messageIndex: messageIndex + 1,
-        });
-        // session title is handled by generateTitleFromQuestion (non-blocking)
-      } catch (error) {
-        console.error("Failed to get AI response:", error);
-        await addMessage({
-          sessionId,
-          userId: convexUser.clerkId,
-          message:
-            "I'm sorry, I'm having trouble responding right now. Please try again.",
-          role: "assistant",
-          messageIndex: messageIndex + 1,
-        });
-      } finally {
-        setIsTyping(false);
-      }
-    } catch (error) {
-      console.error("Failed to send message:", error);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  // Real AI response using Gemini API
-  const generateAIResponse = async (
-    userMessage: string,
-    sessionId: string
-  ): Promise<string> => {
-    try {
-      const response = await fetch("/api/chat", {
+      // Stream the response
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "text/stream",
         },
         body: JSON.stringify({
-          message: userMessage,
+          message: content.trim(),
           sessionId: sessionId,
           context: {
-            // Core user data (latest from database)
             user: latestUserProfile || convexUser,
-
-            // Comprehensive academic context
             userContext: userContext,
             todayContext: todayContext,
-
-            // Real-time metadata
             timestamp: Date.now(),
             currentDateTime: new Date().toISOString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-
-            // Enhanced context hints for better AI responses
             contextHints: {
-              // Academic status
               hasUpcomingAssignments:
                 (userContext?.assignments?.upcoming?.length || 0) > 0,
               hasOverdueAssignments:
@@ -316,21 +346,15 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
                 userContext?.assignments?.upcoming?.length || 0,
               overdueAssignmentCount:
                 userContext?.assignments?.overdue?.length || 0,
-
-              // Today's schedule
               hasTodayEvents: (todayContext?.eventsToday?.length || 0) > 0,
               hasTodayAssignments:
                 (todayContext?.assignmentsDueToday?.length || 0) > 0,
               todayEventCount: todayContext?.eventsToday?.length || 0,
               todayAssignmentCount:
                 todayContext?.assignmentsDueToday?.length || 0,
-
-              // Academic performance
               currentGPA: userContext?.user?.gpa || latestUserProfile?.gpa,
               activeCourseCount: userContext?.statistics?.totalCourses || 0,
               recentFileCount: userContext?.statistics?.recentFiles || 0,
-
-              // User profile completeness
               hasFullProfile: !!(
                 latestUserProfile?.major &&
                 latestUserProfile?.year &&
@@ -341,14 +365,10 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
               institution:
                 latestUserProfile?.institution ||
                 userContext?.user?.institution,
-
-              // Session context
               isNewSession: !chatSession,
-              hasMessageHistory: (messages?.length || 0) > 0,
-              messageCount: messages?.length || 0,
+              hasMessageHistory: (dedupedMessages?.length || 0) > 0,
+              messageCount: dedupedMessages?.length || 0,
             },
-
-            // Quick reference data for common queries
             quickStats: {
               nextAssignment: userContext?.assignments?.upcoming?.[0],
               nextEvent: userContext?.events?.[0],
@@ -360,32 +380,56 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!res.body) return;
 
-      const data = await response.json();
-      return data.message || "I'm sorry, I couldn't generate a response.";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      const pump = () =>
+        reader.read().then(({ done, value }) => {
+          if (done) return;
+          buf += decoder.decode(value, { stream: true });
+          setStreamingText(buf);
+          requestAnimationFrame(pump); // use rAF for smoother updates
+        });
+
+      pump();
     } catch (error) {
-      console.error("Error calling chat API:", error);
-      throw error;
+      console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
+    } finally {
+      setIsSending(false);
     }
   };
 
-  // Generate a concise title for the user's question using the same AI pipeline.
+  // Generate title for the question - using a separate session to avoid polluting chat
   const generateTitleFromQuestion = async (
     question: string,
     sessionId: string
   ): Promise<string> => {
     try {
-      // Instruct the model to return a single-line concise title only
-      const prompt = `Create a concise, human-friendly title (max 6 words) that summarizes the user's question. Respond with the title only on a single line. Question: "${question.replace(/"/g, '\\"')}"`;
-      const raw = await generateAIResponse(prompt, sessionId);
-      if (!raw) return "";
-      // Extract first non-empty line and trim quotes
-      const firstLine = raw.split(/\r?\n/).find((l) => l.trim().length > 0) || raw;
+      // Use a different sessionId for title generation to avoid it appearing in chat
+      const titleSessionId = `title-${sessionId}`;
+      
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Create a concise, human-friendly title (max 6 words) that summarizes the user's question. Respond with the title only on a single line. Question: "${question.replace(
+            /"/g,
+            '\\"'
+          )}"`,
+          sessionId: titleSessionId,
+        }),
+      });
+
+      const data = await response.json();
+      const raw = data.message || "";
+      const firstLine = raw.split(/\r?\n/).find((l: string) => l.trim().length > 0) || raw;
       const title = firstLine.trim().replace(/^['"]+|['"]+$/g, "");
-      // limit length
       return title.slice(0, 120);
     } catch (e) {
       return "";
@@ -416,7 +460,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       <div className="flex items-center justify-between p-4 border-b bg-card flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
-            <Bot className="h-5 w-5 text-primary-foreground" />
+            <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h2 className="font-semibold">EduBox AI Assistant</h2>
@@ -435,7 +479,12 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
         <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="p-4">
             <div className="space-y-4 max-w-4xl mx-auto">
-              {!messages || messages.length === 0 ? (
+              {dedupedMessages
+                .filter(message => 
+                  // Filter out only title generation messages from display
+                  !(message.role === "user" && message.message.includes("Create a concise, human-friendly title"))
+                )
+                .length === 0 && !streamingText ? (
                 <div className="text-center py-8">
                   <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">
@@ -445,25 +494,33 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
                     Ask me about your assignments, schedule, or campus life!
                   </p>
                   <div className="grid gap-2 max-w-md mx-auto">
-                    {quickSuggestions.map((suggestion, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="text-left justify-start"
-                      >
-                        <Lightbulb className="h-4 w-4 mr-2" />
-                        {suggestion}
-                      </Button>
-                    ))}
+                    {loadingSuggestions ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader />
+                      </div>
+                    ) : (
+                      (starterSuggestions || fallbackQuickSuggestions)
+                        .slice(0, 5)
+                        .map((suggestion, index) => (
+                          <Button
+                            key={index}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="text-left justify-start"
+                          >
+                            <Lightbulb className="h-4 w-4 mr-2" />
+                            {suggestion}
+                          </Button>
+                        ))
+                    )}
                   </div>
                 </div>
               ) : (
                 <>
-                  {messages.map((message) => (
+                  {dedupedMessages.map((message) => (
                     <div
-                      key={message._id}
+                      key={`${message.role}-${message.timestamp}`}
                       className={cn(
                         "flex gap-3 p-4 rounded-lg max-w-[75%]",
                         message.role === "user"
@@ -475,7 +532,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
                         <Bot className="h-5 w-5 mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1 space-y-1">
-                        {message.role === 'assistant' ? (
+                        {message.role === "assistant" ? (
                           <div className="prose max-w-none">
                             <ReactMarkdown>{message.message}</ReactMarkdown>
                           </div>
@@ -494,7 +551,20 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
                     </div>
                   ))}
 
-                  {isTyping && (
+                  {/* Streaming partial assistant text */}
+                  {isTyping && streamingText && (
+                    <div className="flex gap-3 p-4 rounded-lg bg-muted max-w-[75%]">
+                      <Bot className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className="prose max-w-none">
+                          <ReactMarkdown>{streamingText}</ReactMarkdown>
+                        </div>
+                        <p className="text-xs opacity-70">Thinking…</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {isTyping && !streamingText && (
                     <div className="flex gap-3 p-4 rounded-lg bg-muted max-w-[75%]">
                       <Bot className="h-5 w-5 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
@@ -510,21 +580,40 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t bg-card flex-shrink-0 min-h-[80px] z-10">
+      <div className="p-4 flex-shrink-0 min-h-[80px] z-10">
         <div className="max-w-4xl mx-auto">
+          {/* Show access/limit notice */}
+          {(!canUseAI || hasReachedLimit) && (
+            <div className="mb-2 text-sm text-muted-foreground">
+              {!canUseAI && (
+                <div>
+                  You don't have access to the AI assistant on your plan.
+                </div>
+              )}
+              {hasReachedLimit && (
+                <div>You have reached your AI usage limit for this period.</div>
+              )}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me anything about your academics..."
-              disabled={isSending}
+              placeholder={
+                !canUseAI
+                  ? "AI unavailable — upgrade to use"
+                  : "Ask me anything about your academics..."
+              }
+              disabled={isSending || !canUseAI || hasReachedLimit}
               className="flex-1"
             />
             <Button
               type="submit"
               size="sm"
-              disabled={!inputValue.trim() || isSending}
+              disabled={
+                !inputValue.trim() || isSending || !canUseAI || hasReachedLimit
+              }
             >
               {isSending ? (
                 <ButtonLoader size="sm" />

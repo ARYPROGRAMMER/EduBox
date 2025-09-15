@@ -30,7 +30,10 @@ export const createOrUpdateUser = mutation({
         updatedAt: now,
         lastLoginAt: now,
       });
-      return existingUser._id;
+
+      // Return the updated user object so the client can use it immediately
+      const updated = await ctx.db.get(existingUser._id);
+      return updated;
     } else {
       // Create new user
       const userId = await ctx.db.insert("users", {
@@ -74,7 +77,9 @@ export const createOrUpdateUser = mutation({
         updatedAt: now,
       });
 
-      return userId;
+      // Return the full user object after insert so the client can use it immediately
+      const created = await ctx.db.get(userId);
+      return created;
     }
   },
 });
@@ -148,7 +153,7 @@ export const updatePersonalInfo = mutation({
 
     // Also update fullName if firstName or lastName is provided
     const updateData: any = { ...updates, updatedAt: Date.now() };
-    
+
     if (updates.firstName || updates.lastName) {
       const user = await ctx.db.get(userId);
       if (user) {

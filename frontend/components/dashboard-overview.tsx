@@ -34,7 +34,6 @@ import {
   Brain,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { BorderBeam } from "@/components/ui/border-beam";
 import { EventWithMeeting } from "@/components/event-with-meeting";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +95,7 @@ export function DashboardOverview() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950">
+    <div className="min-h-screen">
       <div className="space-y-8 p-8">
         {/* Welcome Section */}
         <motion.div
@@ -170,7 +169,7 @@ export function DashboardOverview() {
               >
                 <Card className="group relative overflow-hidden hover:shadow-xl transition-all duration-500 border-0 bg-gradient-to-br border-blue-200 shadow-lg">
                   <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5", stat.bgGradient)}></div>
-                  <BorderBeam size={250} duration={12 + index} delay={index} />
+
                   <CardContent className="p-7 relative z-10">
                     <div className="flex items-center gap-5">
                       <div
@@ -209,8 +208,7 @@ export function DashboardOverview() {
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           <Card className="group relative overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/50 dark:to-indigo-950/50"></div>
-            <BorderBeam size={300} duration={15} delay={2} />
+            <div className="absolute inset-0 "></div>
             <CardHeader className="relative z-10 pb-4">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
@@ -271,7 +269,6 @@ export function DashboardOverview() {
         >
           <Card className="group relative overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm h-full">
             <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-red-50/50 dark:from-orange-950/50 dark:to-red-950/50"></div>
-            <BorderBeam size={200} duration={18} delay={3} />
             <CardHeader className="relative z-10 pb-4">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center">
@@ -341,7 +338,7 @@ export function DashboardOverview() {
           <EventWithMeeting 
             events={upcomingEvents}
             showCreateButton={true}
-            className="mt-6"
+            className="mt-6 "
           />
         </motion.div>
       </div>

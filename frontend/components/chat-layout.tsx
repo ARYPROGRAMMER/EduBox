@@ -19,6 +19,7 @@ import {
   Trash2,
   Search,
   ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Calendar,
   Edit3,
@@ -43,13 +44,13 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const { user: convexUser } = useConvexUser();
   const router = useRouter();
   const params = useParams();
-  
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   const currentSessionId = params.sessionId as string;
 
   // Get all chat sessions for the user
@@ -76,13 +77,16 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const updateSession = useMutation(api.chatSessions.updateSession);
 
   // Filter sessions based on search query and deduplicate by sessionId
-  const filteredSessions = chatSessions?.filter((session) =>
-    session.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredSessions =
+    chatSessions?.filter((session) =>
+      session.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
 
   // Remove duplicates by sessionId, keeping the most recent one
   const uniqueSessions = filteredSessions.reduce((acc, session) => {
-    const existingIndex = acc.findIndex(s => s.sessionId === session.sessionId);
+    const existingIndex = acc.findIndex(
+      (s) => s.sessionId === session.sessionId
+    );
     if (existingIndex >= 0) {
       // Keep the one with the most recent lastMessageAt or createdAt
       const existing = acc[existingIndex];
@@ -110,6 +114,8 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     // If needed, re-enable logging here with caution.
   }, [chatSessions, filteredSessions.length, uniqueSessions.length]);
 
+  // toggle positioning is handled by absolute positioning inside the sidebar container
+
   const handleNewChat = () => {
     const newSessionId = `session_${Date.now()}_${Math.random()
       .toString(36)
@@ -121,9 +127,12 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     router.push(`/dashboard/chat/${sessionId}`);
   };
 
-  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+  const handleDeleteSession = async (
+    sessionId: string,
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation();
-    
+
     if (!convexUser) return;
 
     try {
@@ -131,12 +140,12 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         sessionId,
         userId: convexUser.clerkId,
       });
-      
+
       // If we're deleting the current session, redirect to new chat
       if (sessionId === currentSessionId) {
         router.push("/dashboard/chat");
       }
-      
+
       toast.success("Chat session deleted");
     } catch (error) {
       console.error("Failed to delete session:", error);
@@ -144,7 +153,12 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     }
   };
 
-  const handleRenameSession = (sessionId: string, sessionDbId: string, currentTitle: string, e: React.MouseEvent) => {
+  const handleRenameSession = (
+    sessionId: string,
+    sessionDbId: string,
+    currentTitle: string,
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation();
     setEditingSessionId(sessionDbId); // Use database ID for uniqueness
     setEditingTitle(currentTitle);
@@ -154,7 +168,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     if (!convexUser || !editingTitle.trim() || isUpdating) return;
 
     setIsUpdating(true);
-    
+
     try {
       await updateSession({
         sessionId,
@@ -163,7 +177,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           title: editingTitle.trim(),
         },
       });
-      
+
       toast.success("Session renamed successfully");
       setEditingSessionId(null);
       setEditingTitle("");
@@ -181,26 +195,6 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     setIsUpdating(false);
   };
 
-  // Commented out for now - Schematic generation feature
-  // const generateSchematic = async (prompt: string) => {
-  //   try {
-  //     // Call schematic generation API
-  //     const result = await fetch('/api/generate-schematic', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ 
-  //         prompt, 
-  //         userId: convexUser?.clerkId,
-  //         sessionId: currentSessionId 
-  //       })
-  //     });
-  //     return await result.json();
-  //   } catch (error) {
-  //     console.error('Schematic generation failed:', error);
-  //     toast.error('Failed to generate schematic');
-  //   }
-  // };
-
   const formatSessionTime = (timestamp: number) => {
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   };
@@ -215,200 +209,261 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   return (
     <div className="flex h-full w-full bg-background relative overflow-hidden">
+      {/* <div
+        className="absolute top-1/2 z-40 flex flex-col gap-2"
+        style={{ left: sidebarWidth - 20, transform: "translateY(-50%)" }}
+      >
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsSidebarOpen((s) => !s)}
+          className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition"
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          )}
+        </motion.button>
+      </div> */}
+
       {/* Chat Sessions Sidebar */}
+
       <div
         className={cn(
           "flex flex-col border-r bg-card transition-all duration-300 relative z-10",
-          isSidebarOpen ? "w-80 min-w-80" : "w-0 min-w-0 overflow-hidden"
+          isSidebarOpen ? "w-80 min-w-80" : "w-0 min-w-0 overflow-visible"
         )}
       >
-        {/* Header */}
-        <div className="p-4 border-b bg-muted/50">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-lg">Chat History</h2>
-            <Button
-              onClick={handleNewChat}
-              size="sm"
-              className="h-8 px-3"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New
-            </Button>
-          </div>
-          
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-        </div>
-
-        {/* Sessions List */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-2 space-y-1 flex flex-col">
-              {sortedUniqueSessions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">
-                    {searchQuery ? "No matching conversations" : "No conversations yet"}
-                  </p>
-                  {!searchQuery && (
-                    <Button
-                      onClick={handleNewChat}
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      Start your first chat
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col space-y-1">
-                  {sortedUniqueSessions.map((session) => (
-                    <div
-                      key={session._id}
-                      onClick={() => handleSessionClick(session.sessionId)}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group hover:bg-muted/50 w-full",
-                        currentSessionId === session.sessionId && "bg-muted border"
-                      )}
-                    >
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <MessageSquare className="w-4 h-4 text-primary-foreground" />
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        {editingSessionId === session._id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              value={editingTitle}
-                              onChange={(e) => setEditingTitle(e.target.value)}
-                              className="h-6 text-sm font-medium p-1 border-primary flex-1"
-                              disabled={isUpdating}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && editingTitle.trim()) {
-                                  handleRenameSubmit(session.sessionId, session._id);
-                                } else if (e.key === 'Escape') {
-                                  handleRenameCancel();
-                                }
-                              }}
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (editingTitle.trim()) {
-                                  handleRenameSubmit(session.sessionId, session._id);
-                                }
-                              }}
-                              disabled={isUpdating || !editingTitle.trim()}
-                            >
-                              <Check className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRenameCancel();
-                              }}
-                              disabled={isUpdating}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <h3 className="font-medium text-sm truncate">
-                            {session.title || "Untitled Chat"}
-                          </h3>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <Calendar className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {formatSessionTime(session.lastMessageAt || session.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => handleRenameSession(session.sessionId, session._id, session.title || "Untitled Chat", e)}
-                          >
-                            <Edit3 className="w-4 h-4 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => handleDeleteSession(session.sessionId, e)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t bg-muted/30">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{sortedUniqueSessions.length} conversations</span>
-            <Badge variant="secondary" className="text-xs">
-              AI Chat
-            </Badge>
-          </div>
-        </div>
-      </div>
-
-      {/* Toggle Sidebar Button */}
-      <div className="relative">
+        {/* Toggle that sticks to the sidebar border */}
         <Button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          onClick={() => setIsSidebarOpen((s) => !s)}
           variant="ghost"
           size="sm"
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
           className={cn(
-            "fixed top-4 z-50 h-8 w-8 p-0 bg-white/90 dark:bg-black/90 border shadow-sm transition-all duration-300",
-            isSidebarOpen ? "left-[18rem]" : "left-2"
+            isSidebarOpen
+              ? "absolute right-[-22px] top-[45%] z-40 h-9 w-9 p-2 bg-black text-white border border-slate-800 rounded-full shadow-lg hover:shadow-xl transition"
+              : "fixed left-[64px] top-[45%] z-50 h-9 w-9 p-2 bg-black text-white border border-slate-800 rounded-full shadow-lg hover:shadow-xl transition"
+          )}
+          style={{ transform: "translateY(-50%)" }}
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-4 h-4 text-white" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-white" />
+          )}
+        </Button>
+        <div
+          className={cn(
+            "w-full flex flex-col h-full transition-opacity duration-200 ease-in-out",
+            isSidebarOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
           )}
         >
-          <ChevronLeft
-            className={cn(
-              "w-4 h-4 transition-transform",
-              !isSidebarOpen && "rotate-180"
-            )}
-          />
-        </Button>
+          <div className="p-2 border-b bg-muted/50">
+            <div className="flex items-center justify-between mb-3 mt-1 ml-2">
+              <h2 className="font-semibold text-md">Chat History</h2>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-8"
+              />
+            </div>
+          </div>
+
+          {/* Sessions List */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-2 space-y-1 flex flex-col">
+                {sortedUniqueSessions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      {searchQuery
+                        ? "No matching conversations"
+                        : "No conversations yet"}
+                    </p>
+                    {!searchQuery && (
+                      <Button
+                        onClick={handleNewChat}
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Start your first chat
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-1">
+                    {sortedUniqueSessions.map((session) => (
+                      <div
+                        key={session._id}
+                        onClick={() => handleSessionClick(session.sessionId)}
+                        className={cn(
+                          "relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group hover:bg-muted/50 w-full",
+                          currentSessionId === session.sessionId &&
+                            "bg-muted border"
+                        )}
+                      >
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <MessageSquare className="w-4 h-4 text-primary-foreground" />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0 pr-10">
+                          {editingSessionId === session._id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editingTitle}
+                                onChange={(e) =>
+                                  setEditingTitle(e.target.value)
+                                }
+                                className="h-6 text-sm font-medium p-1 border-primary flex-1"
+                                disabled={isUpdating}
+                                onKeyDown={(e) => {
+                                  if (
+                                    e.key === "Enter" &&
+                                    editingTitle.trim()
+                                  ) {
+                                    handleRenameSubmit(
+                                      session.sessionId,
+                                      session._id
+                                    );
+                                  } else if (e.key === "Escape") {
+                                    handleRenameCancel();
+                                  }
+                                }}
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (editingTitle.trim()) {
+                                    handleRenameSubmit(
+                                      session.sessionId,
+                                      session._id
+                                    );
+                                  }
+                                }}
+                                disabled={isUpdating || !editingTitle.trim()}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6  text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRenameCancel();
+                                }}
+                                disabled={isUpdating}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <h3 className="font-medium text-sm whitespace-normal break-words">
+                              {session.title || "Untitled Chat"}
+                            </h3>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Calendar className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {formatSessionTime(
+                                session.lastMessageAt || session.createdAt
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {editingSessionId !== session._id && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0 absolute right-2 top-1/2 -translate-y-1/2 z-10"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={(e) =>
+                                  handleRenameSession(
+                                    session.sessionId,
+                                    session._id,
+                                    session.title || "Untitled Chat",
+                                    e
+                                  )
+                                }
+                              >
+                                <Edit3 className="w-4 h-4 mr-2" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) =>
+                                  handleDeleteSession(session.sessionId, e)
+                                }
+                                className="text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Footer */}
+          {/* Footer */}
+          <div className="p-4 border-t bg-muted/50">
+            <div className="flex items-center justify-between gap-3">
+              <div
+                className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-muted/60 border text-xs text-muted-foreground cursor-default"
+                aria-label="conversations-count"
+              >
+                <span className="font-medium">
+                  {sortedUniqueSessions.length} conversations
+                </span>
+              </div>
+
+              <div className="flex-shrink-0">
+                <Button
+                  onClick={handleNewChat}
+                  size="sm"
+                  className="h-8 px-3"
+                  aria-label="new-conversation"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  New
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Chat Area */}
@@ -416,11 +471,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         {currentSessionId ? (
           <ChatInterface
             sessionId={currentSessionId}
-            onClose={() => router.push("/dashboard")}
-            // Full user context is already available via useConvexUser hook in ChatInterface
-            // Schematic feature - commented out for now
-            // enableSchematic={true}
-            // onSchematicGenerate={(prompt) => generateSchematic(prompt)}
+            onClose={() => router.push("/dashboard/chat")}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
@@ -428,9 +479,12 @@ export function ChatLayout({ children }: ChatLayoutProps) {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <MessageSquare className="w-8 h-8 text-primary-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                Start a conversation
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Ask questions, get help with your studies, or start a new discussion.
+                Ask questions, get help with your studies, or start a new
+                discussion.
               </p>
               <Button onClick={handleNewChat}>
                 <Plus className="w-4 h-4 mr-2" />
