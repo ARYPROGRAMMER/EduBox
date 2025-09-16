@@ -1,0 +1,27 @@
+name: Ping Render Service
+
+on:
+  schedule:
+    # Runs at minute 0 every hour
+    - cron: '0 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping edubox
+        run: |
+          set -e
+          URL="https://edubox-m2z5.onrender.com/"
+          echo "Pinging $URL"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Ping successful"
+            exit 0
+          else
+            echo "Ping failed with status $STATUS"
+            # Fail the job so GitHub Actions surfaces alerts if desired
+            exit 1
+          fi
