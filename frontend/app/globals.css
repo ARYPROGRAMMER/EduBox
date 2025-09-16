@@ -222,3 +222,8 @@ html {
   background: #fff; /* white background */
   color: #000;      /* black text */
 }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}

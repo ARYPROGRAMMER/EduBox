@@ -36,6 +36,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import dynamic from "next/dynamic";
+
+// Dynamically import the PulsingBorderShader to defer loading until needed
+const PulsingBorderShader = dynamic(() => import("./CircleWithPulse"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-[535px] h-[511px] bg-muted/20 rounded-md animate-pulse mx-auto mb-6" />
+  ),
+});
 
 interface ChatLayoutProps {
   children?: React.ReactNode;
@@ -173,11 +182,19 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   const handleDeleteSelected = async () => {
     if (!convexUser || selectedSessions.length === 0) return;
-    if (!confirm(`Delete ${selectedSessions.length} selected conversation(s)? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Delete ${selectedSessions.length} selected conversation(s)? This cannot be undone.`
+      )
+    )
+      return;
 
     setIsBulkDeleting(true);
     try {
-      await deleteSessions({ sessionIds: selectedSessions, userId: convexUser.clerkId });
+      await deleteSessions({
+        sessionIds: selectedSessions,
+        userId: convexUser.clerkId,
+      });
       setSelectedSessions([]);
       // If current session was deleted, navigate away
       if (currentSessionId && selectedSessions.includes(currentSessionId)) {
@@ -194,7 +211,12 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   const handleDeleteAll = async () => {
     if (!convexUser) return;
-    if (!confirm("Delete ALL conversations and their messages? This cannot be undone.")) return;
+    if (
+      !confirm(
+        "Delete ALL conversations and their messages? This cannot be undone."
+      )
+    )
+      return;
 
     setIsBulkDeleting(true);
     try {
@@ -328,7 +350,11 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                   className="h-7 w-7 p-0"
                   onClick={handleDeleteSelected}
                   disabled={selectedSessions.length === 0 || isBulkDeleting}
-                  title={selectedSessions.length ? `Delete ${selectedSessions.length} selected` : "Delete selected"}
+                  title={
+                    selectedSessions.length
+                      ? `Delete ${selectedSessions.length} selected`
+                      : "Delete selected"
+                  }
                   aria-label="Delete selected conversations"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -399,7 +425,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                         <div className="flex-shrink-0">
                           <div className="flex items-center gap-2">
                             <Checkbox
-                              checked={selectedSessions.includes(session.sessionId)}
+                              checked={selectedSessions.includes(
+                                session.sessionId
+                              )}
                               onClick={(e) => e.stopPropagation()}
                               onCheckedChange={(v) => {
                                 // Radix returns boolean or 'indeterminate'
@@ -570,9 +598,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="w-8 h-8 text-primary-foreground" />
+            <div className="flex flex-col items-center text-center max-w-md">
+              <div  className="relative w-[560px] h-[560px] mb-8 flex items-center justify-center animate-[breathe_4s_ease-in-out_infinite]" >
+                <PulsingBorderShader className="absolute inset-0" size={560} />
               </div>
               <h3 className="text-lg font-semibold mb-2">
                 Start a conversation
@@ -582,8 +610,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                 discussion.
               </p>
               <Button onClick={handleNewChat}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Chat
+                <Plus className="w-4 h-4 mr-2" /> New Chat
               </Button>
             </div>
           </div>
