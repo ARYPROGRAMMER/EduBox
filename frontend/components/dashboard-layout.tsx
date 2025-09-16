@@ -51,94 +51,80 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// Shared hash helper (deterministic-ish quick hash for change detection)
+function hashFnv32(str: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return (h >>> 0).toString(16);
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
   const { user: convexUser } = useConvexUser();
-  // Auto-enqueue background sync when userContext is available (throttled)
+
   const autoUserContext = useQuery(
     api.userContext.getUserContext,
     convexUser ? { userId: convexUser.clerkId } : "skip"
   );
 
+  const getSyncEndpoint = () =>
+    (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL || "") +
+    (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL ? "/sync" : "/api/nuclia/sync");
+
   React.useEffect(() => {
     try {
-      // Always call the frontend proxy so the server can rebuild the authoritative payload
-      const getSyncEndpoint = () => {
-        return "/api/nuclia/sync";
-      };
       const userId = convexUser?.clerkId || convexUser?.id;
       if (!userId || !autoUserContext) return;
+
       const key = `edubox:last_autosync:${userId}`;
+      const hashKey = `edubox:last_autosync_hash:${userId}`;
       const last = Number(localStorage.getItem(key) || 0);
       const now = Date.now();
-      // throttle: only auto-sync once every 10 minutes
-      if (now - last < 1000 * 60 * 10) return;
 
-      // Only auto-sync when the context actually changed. Compute a small stable hash
-      // of the context JSON to avoid sending unchanged payloads. Use FNV-1a 32-bit.
-      const hashFnv32 = (str: string) => {
-        let h = 0x811c9dc5;
-        for (let i = 0; i < str.length; i++) {
-          h ^= str.charCodeAt(i);
-          h =
-            (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
-        }
-        return (h >>> 0).toString(16);
-      };
+      // Compute a quick stable hash of the serialized context
+      const normalized = JSON.stringify(autoUserContext);
+      const newHash = hashFnv32(normalized);
+      const prevHash = localStorage.getItem(hashKey) || null;
 
-      try {
-        const normalized = JSON.stringify(autoUserContext);
-        const newHash = hashFnv32(normalized);
-        const hashKey = `edubox:last_autosync_hash:${userId}`;
-        const prevHash = localStorage.getItem(hashKey) || null;
-        if (prevHash === newHash) {
-          // update throttle timestamp to avoid retrying too often
-          localStorage.setItem(key, String(now));
-          return;
-        }
-
-        // non-blocking enqueue to the frontend proxy which will build the authoritative payload
-        const getSyncEndpoint = () => "/api/nuclia/sync";
-
-        (async () => {
-          try {
-            // Only send userId; server will reconstruct the authoritative payload
-            const resp = await fetch(getSyncEndpoint(), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId }),
-            });
-            if (resp && resp.ok) {
-              localStorage.setItem(hashKey, newHash);
-              localStorage.setItem(key, String(now));
-            } else {
-              // still update throttle to avoid spamming; we can retry via manual sync
-              localStorage.setItem(key, String(now));
-            }
-          } catch (e) {
-            // ignore auto-sync network errors
-            console.debug("auto-sync failed", e);
-            localStorage.setItem(key, String(now));
-          }
-        })();
-      } catch (e) {
-        // If JSON.stringify or hashing fails, fall back to simple send once
-        (async () => {
-          try {
-            await fetch(getSyncEndpoint(), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId, payload: autoUserContext }),
-            });
-            localStorage.setItem(key, String(now));
-          } catch (e) {
-            console.debug("auto-sync failed fallback", e);
-          }
-        })();
+      // If nothing changed, just update the last-touch timestamp and return
+      if (prevHash === newHash) {
+        localStorage.setItem(key, String(now));
+        return;
       }
+
+      // Avoid syncing too frequently: skip if we synced very recently
+      if (now - last < 30 * 1000) {
+        // leave hash alone so next real change will trigger
+        return;
+      }
+
+      (async () => {
+        try {
+          const resp = await fetch(getSyncEndpoint(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, payload: autoUserContext }),
+          });
+          if (resp && resp.ok) {
+            localStorage.setItem(hashKey, newHash);
+            localStorage.setItem(key, String(now));
+            console.debug("auto-sync enqueued/started", { userId });
+          } else {
+            // even on failure, record attempt time to avoid tight loops
+            localStorage.setItem(key, String(now));
+            console.debug("auto-sync response not ok", { status: resp.status });
+          }
+        } catch (e) {
+          console.debug("auto-sync failed", e);
+          localStorage.setItem(key, String(now));
+        }
+      })();
     } catch (e) {
-      // swallow
+      // swallow - don't break the app UI
     }
   }, [convexUser, autoUserContext]);
   const { signOut } = useAuth();
@@ -146,60 +132,40 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const [mounted, setMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Keep previous open state so we can restore it after leaving chat
+
   const [prevSidebarOpen, setPrevSidebarOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
     setMounted(true);
 
-    // Compute whether the chat subroutes are active (exact to dashboard/chat)
     const isChatRoute = pathname?.startsWith("/dashboard/chat");
 
     setIsSidebarOpen(window.innerWidth >= 1024 && !isChatRoute);
 
     const onResize = () => {
-      // Resize should update sidebar openness based on viewport width.
-      // We no longer block reopening on chat pages so users can open the
-      // sidebar manually or by resizing to a wide viewport.
       setIsSidebarOpen(window.innerWidth >= 1024);
     };
 
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-    // We intentionally don't include isChatRoute here because it's derived
-    // from pathname which is already in deps. Keep pathname as the dep.
   }, [pathname]);
 
-  // If the Ask AI/chat pages are active we want the sidebar hidden immediately
-  // (no animation) to provide a full-width chat experience. Derive this flag
-  // from the pathname so changes are reactive to navigation.
-  // Only treat routes under /dashboard/chat as chat-active. This avoids
-  // false-positives from other parts of the site that might include "chat"
-  // in their path.
   const isChatActive = pathname?.startsWith("/dashboard/chat");
 
-  // Track previous chat-active state so we only run the enter/leave logic on
-  // actual route transitions. This prevents user toggles while on a chat
-  // route from being overridden by the effect.
   const prevIsChatRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     const prevIsChat = prevIsChatRef.current;
 
-    // If previous is null, this is the initial mount — handle initial
-    // landing on the chat page via the mount logic above (so skip here).
     if (prevIsChat === null) {
       prevIsChatRef.current = !!isChatActive;
       return;
     }
 
-    // Only run when there's an actual transition (entering or leaving chat)
     if (!prevIsChat && isChatActive) {
-      // Entering chat: save previous state and close
       setPrevSidebarOpen((prev) => (prev === null ? isSidebarOpen : prev));
       setIsSidebarOpen(false);
     } else if (prevIsChat && !isChatActive) {
-      // Leaving chat: restore if we previously saved a state
       if (prevSidebarOpen !== null) {
         setIsSidebarOpen(prevSidebarOpen);
         setPrevSidebarOpen(null);
@@ -207,10 +173,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     prevIsChatRef.current = !!isChatActive;
-    // Intentionally excluding isSidebarOpen and prevSidebarOpen from deps to
-    // avoid re-running when they change due to user toggles; we're only
-    // interested in pathname transitions which update isChatActive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChatActive]);
 
   const navItems = [
@@ -235,24 +197,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       icon: Plus,
       premium: true,
     },
-    // {
-    //   name: "Campus Integration",
-    //   href: "/dashboard/campus-integration",
-    //   icon: Building,
-    //   premium: true,
-    // },
-    // {
-    //   name: "Collaboration Hub",
-    //   href: "/dashboard/collaboration",
-    //   icon: Users,
-    //   premium: true,
-    // },
-    // {
-    //   name: "Cloud Storage Sync",
-    //   href: "/dashboard/cloud-storage",
-    //   icon: Cloud,
-    //   premium: true,
-    // },
+
     {
       name: "Data Import/Export",
       href: "/dashboard/import-export",
@@ -266,9 +211,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ? "from-slate-700/80 via-slate-800/80 to-slate-900/80"
       : "from-emerald-500/80 via-teal-600/80 to-green-600/80";
 
-  // Use exact pixel widths so main content margin matches sidebar width precisely
-  // When the chat is active, force the sidebar to its collapsed width (80)
-  // immediately by skipping the transition on width/margin.
   const sidebarWidth = isSidebarOpen ? 280 : 80;
 
   return (
@@ -437,12 +379,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 </div>
               )}
-              {/* Manual sync button for userContext -> knowledge base */}
-              <div className="flex items-center gap-2">
-                <ManualSyncButton convexUser={convexUser} />
-              </div>
 
               <div className="flex justify-center gap-2">
+                <ManualSyncButton convexUser={convexUser} />
                 <Button
                   size="sm"
                   variant="ghost"
@@ -526,10 +465,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           {pathname?.startsWith("/dashboard/chat") ? (
-            // Chat pages need full height and width without padding
             <div className="w-full h-full">{children}</div>
           ) : (
-            // Other pages use normal padding
             <div className="p-6">{children}</div>
           )}
         </div>
@@ -538,12 +475,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 }
 
-// ManualSyncButton: small client component that posts the current userContext to backend
 function ManualSyncButton({ convexUser }: { convexUser: any }) {
   const [loading, setLoading] = React.useState(false);
   const userId = convexUser?.clerkId || convexUser?.id || null;
 
-  // Fetch the userContext via Convex query (client side)
   const userContext = useQuery(
     api.userContext.getUserContext,
     userId ? { userId } : "skip"
@@ -554,7 +489,6 @@ function ManualSyncButton({ convexUser }: { convexUser: any }) {
     setLoading(true);
     try {
       const resp = await fetch(
-        // Use environment variable fallback to same host if not set
         (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL || "") +
           (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL
             ? "/sync/manual"
@@ -573,6 +507,19 @@ function ManualSyncButton({ convexUser }: { convexUser: any }) {
         );
       } else {
         const data = await resp.json().catch(() => ({}));
+        // record last successful sync hash and timestamp so autosync won't re-send
+        try {
+          const normalized = JSON.stringify(userContext || {});
+          const newHash =
+            hashFnv32 && typeof hashFnv32 === "function"
+              ? hashFnv32(normalized)
+              : null;
+          const key = `edubox:last_autosync:${userId}`;
+          const hashKey = `edubox:last_autosync_hash:${userId}`;
+          const now = Date.now();
+          if (newHash) localStorage.setItem(hashKey, newHash);
+          localStorage.setItem(key, String(now));
+        } catch (e) {}
         toast.success("Manual sync started");
       }
     } catch (e) {
