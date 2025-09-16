@@ -449,9 +449,9 @@ export function ProfilePage() {
   }, []);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="container mx-auto py-6 sm:py-8 space-y-6 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">
             Profile Settings
           </h1>
@@ -473,14 +473,17 @@ export function ProfilePage() {
             )}
           </div>
         </div>
-        <Button
-          onClick={handleSaveProfile}
-          disabled={isLoading}
-          variant="outline"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {isLoading ? "Saving..." : "Save Now"}
-        </Button>
+        <div className="w-full sm:w-auto">
+          <Button
+            onClick={handleSaveProfile}
+            disabled={isLoading}
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isLoading ? "Saving..." : "Save Now"}
+          </Button>
+        </div>
       </div>
 
       {!isProfileComplete() && (
@@ -508,7 +511,7 @@ export function ProfilePage() {
         }}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="flex flex-wrap gap-2 w-full">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="academic">Academic</TabsTrigger>
           <TabsTrigger value="schedules">Schedules</TabsTrigger>
@@ -529,7 +532,7 @@ export function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 <Avatar className="w-20 h-20">
                   <AvatarImage src={clerkUser.imageUrl} />
                   <AvatarFallback className="text-lg">

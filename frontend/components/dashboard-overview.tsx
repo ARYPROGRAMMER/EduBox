@@ -96,7 +96,7 @@ export function DashboardOverview() {
 
   return (
     <div className="min-h-screen">
-      <div className="space-y-8 p-8">
+  <div className="space-y-8 p-6 sm:p-8">
         {/* Welcome Section */}
         <motion.div
           className="mb-10"
@@ -105,7 +105,7 @@ export function DashboardOverview() {
           transition={{ duration: 0.6 }}
         >
           <div className="relative">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4 leading-tight">
+            <h1 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4 leading-tight">
               Welcome back, {user?.firstName || user?.fullName || "Student"}! 👋
             </h1>
             <p className="text-muted-foreground text-xl max-w-2xl">
@@ -118,7 +118,7 @@ export function DashboardOverview() {
         </motion.div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">{
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">{
           isLoading
             ? Array.from({ length: 4 }).map((_, index) => (
                 <CardSkeleton key={index} lines={1} />

@@ -2,6 +2,7 @@
 
 import { FeatureFlag } from "@/features/flag";
 import { LockedFeature } from "@/components/locked-feature";
+import MobileGate from "@/components/mobile-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,8 +94,9 @@ export default function CollaborationHubPage() {
 
   return (
     <LockedFeature feature={FeatureFlag.COLLABORATION_TOOLS} requiredPlan="PRO">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <MobileGate>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <Users className="h-8 w-8 text-blue-600" />
@@ -284,6 +286,7 @@ export default function CollaborationHubPage() {
           </Card>
         </div>
       </div>
+      </MobileGate>
     </LockedFeature>
   );
 }

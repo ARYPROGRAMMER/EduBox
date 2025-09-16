@@ -114,15 +114,19 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden  items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
+          // make the mobile bar taller and center the menu icon for easier tapping
+          "h-12 px-4 py-2 flex flex-row md:hidden items-center justify-center bg-neutral-100 dark:bg-neutral-800 w-full"
         )}
         {...props}
       >
-        <div className="flex justify-end z-20 w-full">
-          <IconMenu2
-            className="text-neutral-800 dark:text-neutral-200"
+        <div className="flex justify-center z-20 w-full">
+          <button
+            className="rounded-full bg-white/60 dark:bg-neutral-800/60 p-2 shadow-sm"
             onClick={() => setOpen(!open)}
-          />
+            aria-label={open ? "Close menu" : "Open menu"}
+          >
+            <IconMenu2 className="text-neutral-800 dark:text-neutral-200 w-6 h-6" />
+          </button>
         </div>
         <AnimatePresence>
           {open && (
@@ -135,17 +139,19 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-6 z-[100] flex flex-col justify-start items-center",
                 className
               )}
             >
-              <div
-                className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200"
-                onClick={() => setOpen(!open)}
-              >
-                <IconX />
+              <div className="w-full flex justify-end">
+                <div
+                  className="text-neutral-800 dark:text-neutral-200"
+                  onClick={() => setOpen(!open)}
+                >
+                  <IconX />
+                </div>
               </div>
-              {children}
+              <div className="w-full max-w-md mt-6">{children}</div>
             </motion.div>
           )}
         </AnimatePresence>

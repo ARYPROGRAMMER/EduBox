@@ -35,6 +35,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
   User,
   LogOut,
   GraduationCap,
@@ -45,7 +47,7 @@ import {
   Crown,
   Upload,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -229,10 +231,135 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       )}
 
+      {/* Mobile visible toggle button (top-left) */}
+      <div className="lg:hidden fixed top-4 left-4 z-[60]">
+        
+        { !isSidebarOpen &&
+          (<button
+          type="button"
+          onClick={() => {
+            console.debug("mobile toggle clicked - prev:", isSidebarOpen);
+            setIsSidebarOpen((s) => !s);
+          }}
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          className="p-3 md:p-2 rounded-lg bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 shadow-lg active:scale-95"
+        >
+        
+            <Menu className="w-6 h-6 text-slate-700 dark:text-slate-200" />
+        
+        </button>)
+        }
+      </div>
+
+      {/* Mobile slide-in panel for sidebar content */}
+      {mounted && isSidebarOpen && (
+        <AnimatePresence>
+          <motion.aside
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-y-0 left-0 z-50 w-3/4 max-w-sm bg-white dark:bg-slate-900 shadow-xl lg:hidden"
+          >
+            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                  <Image src="/logo-only.png" alt="Logo" width={36} height={36} className="object-contain" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">EduBox</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">AI Digital Locker</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => { console.debug("mobile close clicked"); setIsSidebarOpen(false); }} aria-label="Close menu" className="p-2">
+                <X className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+              </button>
+            </div>
+
+            <ScrollArea className="px-3 py-4">
+              <div className="space-y-2">
+                {navItems.map((item) => {
+                  const active =
+                    item.href === "/dashboard"
+                      ? pathname === "/dashboard"
+                      : pathname?.startsWith(item.href);
+
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setIsSidebarOpen(false)}>
+                      <motion.div whileHover={{ scale: 1.03 }}>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "w-full h-12 rounded-xl flex items-center justify-start px-4",
+                            active
+                              ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
+                          )}
+                        >
+                          <Icon className={cn("w-5 h-5", active && "text-white", "mr-3")} />
+                          <span className="font-medium">{item.name}</span>
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  );
+                })}
+
+                {premiumNavItems.map((item) => {
+                  const active = pathname?.startsWith(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setIsSidebarOpen(false)}>
+                      <motion.div whileHover={{ scale: 1.03 }}>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "w-full h-12 rounded-xl flex items-center justify-start px-4",
+                            active
+                              ? `bg-gradient-to-r ${activeGradient} text-white shadow-md`
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100/40 dark:hover:bg-slate-800/40"
+                          )}
+                        >
+                          <Icon className={cn("w-5 h-5", active && "text-white", "mr-3")} />
+                          <span className="font-medium flex-1 text-left">{item.name}</span>
+                          <Crown className="w-4 h-4" />
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            <div className="border-t border-slate-200 dark:border-slate-700 p-4 bg-white/30 dark:bg-slate-800/30">
+              {mounted && (
+                <div className="flex items-center gap-3 p-2 rounded-xl">
+                  <UserButton
+                    appearance={{
+                      baseTheme: theme === "dark" ? clerkDark : undefined,
+                      elements: { avatarBox: "w-10 h-10" },
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                      {user?.fullName || "Student"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {user?.primaryEmailAddress?.emailAddress || "student@edu.com"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.aside>
+        </AnimatePresence>
+      )}
+
       {/* Sidebar (not draggable) */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-30 h-full flex flex-col border-r backdrop-blur-xl",
+          // hide desktop sidebar on small screens, only show on large (lg)
+          "hidden lg:flex fixed left-0 top-0 z-30 h-full flex-col border-r backdrop-blur-xl",
           "bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 shadow-xl"
         )}
         style={{
@@ -430,7 +557,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Floating toggle button - positioned next to sidebar edge */}
       <div
-        className="absolute top-1/2 z-40 flex flex-col gap-2"
+        // floating toggle only for large screens
+        className="hidden lg:flex absolute top-1/2 z-40 flex-col gap-2"
         style={{ left: sidebarWidth - 20, transform: "translateY(-50%)" }}
       >
         <motion.button
@@ -450,7 +578,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <main
         className="flex-1 flex flex-col h-full"
         style={{
-          marginLeft: sidebarWidth,
+          // only apply a left margin on large screens where the sidebar is visible
+          marginLeft: mounted && typeof window !== "undefined" && window.innerWidth >= 1024 ? sidebarWidth : 0,
           transition: "margin-left 300ms ease",
         }}
       >

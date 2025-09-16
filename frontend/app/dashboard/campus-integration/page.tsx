@@ -2,6 +2,7 @@
 
 import { FeatureFlag } from "@/features/flag";
 import { LockedFeature } from "@/components/locked-feature";
+import MobileGate from "@/components/mobile-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +83,8 @@ export default function CampusIntegrationPage() {
 
   return (
     <LockedFeature feature={FeatureFlag.CAMPUS_INTEGRATION} requiredPlan="PRO">
-      <div className="space-y-6">
+      <MobileGate>
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -97,6 +99,8 @@ export default function CampusIntegrationPage() {
             <Star className="w-3 h-3 mr-1" />
             Premium Feature
           </Badge>
+          </div>
+        
         </div>
 
         {/* Institution Connection */}
@@ -229,7 +233,7 @@ export default function CampusIntegrationPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </MobileGate>
     </LockedFeature>
   );
 }

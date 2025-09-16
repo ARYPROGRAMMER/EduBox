@@ -351,7 +351,7 @@ export function FileHubEnhanced() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">File Management</h2>
           <p className="text-muted-foreground">
@@ -361,7 +361,7 @@ export function FileHubEnhanced() {
         <LockedFeature feature={FeatureFlag.FILE_MANAGEMENT} requiredPlan="PRO">
           <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto">
                 <Upload className="w-4 h-4 mr-2" />
                 Upload Files
               </Button>
@@ -428,7 +428,7 @@ export function FileHubEnhanced() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -439,7 +439,7 @@ export function FileHubEnhanced() {
           />
         </div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full md:w-48">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
@@ -520,7 +520,7 @@ export function FileHubEnhanced() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayFiles.map((file) => (
             <Card
               key={file._id}
@@ -617,7 +617,7 @@ export function FileHubEnhanced() {
                   </p>
                 )}
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <Button
                     variant="ghost"
                     size="sm"

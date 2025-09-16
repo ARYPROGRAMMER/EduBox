@@ -46,6 +46,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import MobileGate from "@/components/mobile-gate";
 
 // Main component wrapped in React.memo with proper dependency tracking
 const AnalyticsPage = React.memo(() => {
@@ -903,11 +904,10 @@ AnalyticsPage.displayName = "AnalyticsPage";
 // Export with LockedFeature wrapper
 export default function AnalyticsPageWrapper() {
   return (
-    <LockedFeature
-      feature={FeatureFlag.COURSE_ANALYTICS}
-      requiredPlan="STARTER"
-    >
-      <AnalyticsPage />
+    <LockedFeature feature={FeatureFlag.COURSE_ANALYTICS} requiredPlan="STARTER">
+      <MobileGate>
+        <AnalyticsPage />
+      </MobileGate>
     </LockedFeature>
   );
 }
