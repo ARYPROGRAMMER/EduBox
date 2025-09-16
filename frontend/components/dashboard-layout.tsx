@@ -1,5 +1,10 @@
 "use client";
 
+import { useConvexUser } from "@/hooks/use-convex-user";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
+
 import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,6 +54,93 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
+  const { user: convexUser } = useConvexUser();
+  // Auto-enqueue background sync when userContext is available (throttled)
+  const autoUserContext = useQuery(
+    api.userContext.getUserContext,
+    convexUser ? { userId: convexUser.clerkId } : "skip"
+  );
+
+  React.useEffect(() => {
+    try {
+      // Always call the frontend proxy so the server can rebuild the authoritative payload
+      const getSyncEndpoint = () => {
+        return "/api/nuclia/sync";
+      };
+      const userId = convexUser?.clerkId || convexUser?.id;
+      if (!userId || !autoUserContext) return;
+      const key = `edubox:last_autosync:${userId}`;
+      const last = Number(localStorage.getItem(key) || 0);
+      const now = Date.now();
+      // throttle: only auto-sync once every 10 minutes
+      if (now - last < 1000 * 60 * 10) return;
+
+      // Only auto-sync when the context actually changed. Compute a small stable hash
+      // of the context JSON to avoid sending unchanged payloads. Use FNV-1a 32-bit.
+      const hashFnv32 = (str: string) => {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h =
+            (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+        }
+        return (h >>> 0).toString(16);
+      };
+
+      try {
+        const normalized = JSON.stringify(autoUserContext);
+        const newHash = hashFnv32(normalized);
+        const hashKey = `edubox:last_autosync_hash:${userId}`;
+        const prevHash = localStorage.getItem(hashKey) || null;
+        if (prevHash === newHash) {
+          // update throttle timestamp to avoid retrying too often
+          localStorage.setItem(key, String(now));
+          return;
+        }
+
+        // non-blocking enqueue to the frontend proxy which will build the authoritative payload
+        const getSyncEndpoint = () => "/api/nuclia/sync";
+
+        (async () => {
+          try {
+            // Only send userId; server will reconstruct the authoritative payload
+            const resp = await fetch(getSyncEndpoint(), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId }),
+            });
+            if (resp && resp.ok) {
+              localStorage.setItem(hashKey, newHash);
+              localStorage.setItem(key, String(now));
+            } else {
+              // still update throttle to avoid spamming; we can retry via manual sync
+              localStorage.setItem(key, String(now));
+            }
+          } catch (e) {
+            // ignore auto-sync network errors
+            console.debug("auto-sync failed", e);
+            localStorage.setItem(key, String(now));
+          }
+        })();
+      } catch (e) {
+        // If JSON.stringify or hashing fails, fall back to simple send once
+        (async () => {
+          try {
+            await fetch(getSyncEndpoint(), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId, payload: autoUserContext }),
+            });
+            localStorage.setItem(key, String(now));
+          } catch (e) {
+            console.debug("auto-sync failed fallback", e);
+          }
+        })();
+      }
+    } catch (e) {
+      // swallow
+    }
+  }, [convexUser, autoUserContext]);
   const { signOut } = useAuth();
   const pathname = usePathname();
 
@@ -345,6 +437,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 </div>
               )}
+              {/* Manual sync button for userContext -> knowledge base */}
+              <div className="flex items-center gap-2">
+                <ManualSyncButton convexUser={convexUser} />
+              </div>
 
               <div className="flex justify-center gap-2">
                 <Button
@@ -439,5 +535,71 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </main>
     </div>
+  );
+}
+
+// ManualSyncButton: small client component that posts the current userContext to backend
+function ManualSyncButton({ convexUser }: { convexUser: any }) {
+  const [loading, setLoading] = React.useState(false);
+  const userId = convexUser?.clerkId || convexUser?.id || null;
+
+  // Fetch the userContext via Convex query (client side)
+  const userContext = useQuery(
+    api.userContext.getUserContext,
+    userId ? { userId } : "skip"
+  );
+
+  const handleManualSync = async () => {
+    if (!userId) return toast.error("No user id available for sync");
+    setLoading(true);
+    try {
+      const resp = await fetch(
+        // Use environment variable fallback to same host if not set
+        (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL || "") +
+          (process.env.NEXT_PUBLIC_NUCLIA_SYNC_URL
+            ? "/sync/manual"
+            : "/api/nuclia/sync/manual"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, payload: userContext || {} }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        toast.error(
+          "Sync failed: " + (err?.error || resp.statusText || resp.status)
+        );
+      } else {
+        const data = await resp.json().catch(() => ({}));
+        toast.success("Manual sync started");
+      }
+    } catch (e) {
+      console.error("Manual sync error", e);
+      toast.error("Manual sync request failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={handleManualSync}
+      disabled={loading || !userId}
+      title={
+        userId
+          ? "Sync your context to knowledge base"
+          : "Sign in to enable sync"
+      }
+    >
+      {loading ? (
+        <Upload className="w-4 h-4 animate-pulse" />
+      ) : (
+        <Upload className="w-4 h-4" />
+      )}
+    </Button>
   );
 }

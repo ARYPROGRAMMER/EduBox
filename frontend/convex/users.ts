@@ -334,3 +334,26 @@ export const updateLastLogin = mutation({
     }
   },
 });
+
+// Persist Nuclia resource ID for a user (trusted server-side calls should use clerkId)
+export const setNucliaResourceId = mutation({
+  args: {
+    clerkId: v.string(),
+    nucliaResourceId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) throw new Error("user not found");
+
+    await ctx.db.patch(user._id, {
+      nucliaResourceId: args.nucliaResourceId,
+      updatedAt: Date.now(),
+    } as any);
+
+    return user._id;
+  },
+});

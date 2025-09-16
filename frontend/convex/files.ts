@@ -101,6 +101,7 @@ export const getFile = query({
     return {
       ...file,
       url: await ctx.storage.getUrl(file.storageId),
+      nucliaResourceId: file.nucliaResourceId,
     };
   },
 });
@@ -243,6 +244,26 @@ export const updateLastAccessed = mutation({
     await ctx.db.patch(args.fileId, {
       lastAccessedAt: Date.now(),
     });
+  },
+});
+
+// Set Nuclia resource ID on a file document (persist mapping)
+export const setNucliaResourceId = mutation({
+  args: {
+    fileId: v.id("files"),
+    userId: v.string(),
+    nucliaResourceId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const file = await ctx.db.get(args.fileId);
+    if (!file || file.userId !== args.userId) {
+      throw new Error("File not found or access denied");
+    }
+    await ctx.db.patch(args.fileId, {
+      nucliaResourceId: args.nucliaResourceId,
+      updatedAt: Date.now(),
+    } as any);
+    return args.fileId;
   },
 });
 

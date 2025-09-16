@@ -140,7 +140,8 @@ export interface File extends BaseEntity {
   userId: string;
   fileName: string;
   originalName: string;
-  fileType: string;
+  mimeType: string;
+  nucliaResourceId?: string;
   fileSize: number;
   url: string;
   storageId: Id<"_storage">;

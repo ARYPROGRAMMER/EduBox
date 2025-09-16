@@ -19,9 +19,9 @@ export const getUserContext = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", userId))
       .first();
 
-    // Get current and upcoming assignments (next 30 days)
+    // Get current and upcoming assignments (next 180 days)
     const now = Date.now();
-    const thirtyDaysFromNow = now + 30 * 24 * 60 * 60 * 1000;
+    const oneEightyDaysFromNow = now + 180 * 24 * 60 * 60 * 1000;
 
     const assignments = await ctx.db
       .query("assignments")
@@ -29,21 +29,21 @@ export const getUserContext = query({
       .filter((q) =>
         q.and(
           q.gte(q.field("dueDate"), now),
-          q.lte(q.field("dueDate"), thirtyDaysFromNow)
+          q.lte(q.field("dueDate"), oneEightyDaysFromNow)
         )
       )
       .order("asc")
-      .take(20);
+      .take(200);
 
-    // Get active courses
+    // Get active courses (more history)
     const courses = await ctx.db
       .query("courses")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("status"), "active"))
-      .take(20);
+      .take(50);
 
-    // Get upcoming events (next 14 days)
-    const fourteenDaysFromNow = now + 14 * 24 * 60 * 60 * 1000;
+    // Get upcoming events (next 60 days)
+    const sixtyDaysFromNow = now + 60 * 24 * 60 * 60 * 1000;
 
     const events = await ctx.db
       .query("events")
@@ -51,28 +51,23 @@ export const getUserContext = query({
       .filter((q) =>
         q.and(
           q.gte(q.field("startTime"), now),
-          q.lte(q.field("startTime"), fourteenDaysFromNow)
+          q.lte(q.field("startTime"), sixtyDaysFromNow)
         )
       )
       .order("asc")
-      .take(20);
+      .take(100);
 
-    // Get recent files (last 30 days)
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    // Get recent files (last 180 days) with richer metadata; include archived files too
+    const oneEightyDaysAgo = now - 180 * 24 * 60 * 60 * 1000;
 
     const recentFiles = await ctx.db
       .query("files")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("createdAt"), thirtyDaysAgo),
-          q.eq(q.field("isArchived"), false)
-        )
-      )
+      .filter((q) => q.gte(q.field("createdAt"), oneEightyDaysAgo))
       .order("desc")
-      .take(15);
+      .take(200);
 
-    // Get grade/performance data
+    // Get grade/performance data (more history)
     const grades = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
@@ -83,7 +78,7 @@ export const getUserContext = query({
         )
       )
       .order("desc")
-      .take(10);
+      .take(50);
 
     // Get campus life events (if available)
     const campusEvents = await ctx.db
@@ -95,7 +90,7 @@ export const getUserContext = query({
         )
       )
       .order("asc")
-      .take(10);
+      .take(50);
 
     // Calculate today's schedule
     const today = new Date();
@@ -152,6 +147,28 @@ export const getUserContext = query({
       (meal) => meal.dayOfWeek === todayDayName || meal.dayOfWeek === "Daily"
     );
 
+    // Get recent chat sessions and messages so KB can reference recent conversations
+    const chatSessions = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(200);
+
+    const chatMessages = await ctx.db
+      .query("chatMessages")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(500);
+
+    // User settings / plan information
+    const userSettings = user
+      ? {
+          planType: user.planType || null,
+          planExpiresAt: user.planExpiresAt || null,
+          preferences: (user as any)?.preferences || null,
+        }
+      : null;
+
     return {
       user: user
         ? {
@@ -206,13 +223,25 @@ export const getUserContext = query({
         description: e.description,
       })),
 
-      recentFiles: recentFiles.map((f) => ({
-        name: f.fileName,
-        category: f.category,
-        subject: f.subject,
-        description: f.description,
-        createdAt: f.createdAt,
-      })),
+      // Provide richer file metadata including storageId and extractedText so KB can index file content
+      recentFiles: await Promise.all(
+        recentFiles.map(async (f) => ({
+          id: f._id || null,
+          name: f.fileName,
+          originalName: f.originalName,
+          storageId: f.storageId,
+          url: await ctx.storage.getUrl(f.storageId).catch(() => null),
+          fileSize: f.fileSize,
+          mimeType: f.mimeType,
+          category: f.category,
+          courseId: f.courseId,
+          subject: f.subject,
+          tags: f.tags || [],
+          description: f.description,
+          extractedText: f.extractedText || null,
+          uploadedAt: f.uploadedAt || f.createdAt,
+        }))
+      ),
 
       performance: {
         recentGrades: grades.map((g) => ({
@@ -231,6 +260,24 @@ export const getUserContext = query({
         startTime: e.startTime,
         location: e.location,
       })),
+
+      chat: {
+        sessions: chatSessions.map((s) => ({
+          id: s._id || null,
+          title: s.title,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        })),
+        recentMessages: chatMessages.map((m) => ({
+          id: m._id || null,
+          sessionId: m.sessionId,
+          message: m.message,
+          role: m.role,
+          createdAt: m.createdAt,
+        })),
+      },
+
+      userSettings,
 
       statistics: {
         totalCourses: courses.length,
