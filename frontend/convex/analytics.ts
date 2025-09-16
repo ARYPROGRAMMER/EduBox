@@ -67,14 +67,20 @@ export const getStudySessions = query({
       .order("desc")
       .take(args.limit || 50);
 
-    return sessions.map((session) => ({
-      _id: session._id,
-      startTime: session.startTime,
-      duration: session.duration || 0,
-      focusScore: session.focusScore || 70, // Default focus score
-      subject: session.subject || "General Study",
-      completed: session.isCompleted || true,
-    }));
+    return sessions.map((session) => {
+      const sAny: any = session;
+      return {
+        _id: sAny._id,
+        startTime: sAny.startTime,
+        duration: sAny.duration || 0,
+        focusScore: sAny.focusScore || 70,
+        subject: sAny.subject || sAny.title || "General Study",
+        title: sAny.title || sAny.subject || "Study Session",
+        description: sAny.description || "",
+        completed: sAny.isCompleted || true,
+        audioQueue: sAny.audioQueue || [],
+      };
+    });
   },
 });
 
@@ -227,6 +233,10 @@ export const createStudySession = mutation({
     environment: v.optional(v.string()),
     filesUsed: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
+    // Optional persisted audio queue: array of { id, name, url }
+    audioQueue: v.optional(
+      v.array(v.object({ id: v.string(), name: v.string(), url: v.string() }))
+    ),
     isCompleted: v.optional(v.boolean()),
     wasInterrupted: v.optional(v.boolean()),
   },
@@ -264,6 +274,9 @@ export const updateStudySession = mutation({
     studyMethod: v.optional(v.string()),
     location: v.optional(v.string()),
     environment: v.optional(v.string()),
+    audioQueue: v.optional(
+      v.array(v.object({ id: v.string(), name: v.string(), url: v.string() }))
+    ),
   },
   handler: async (ctx, args) => {
     const { sessionId, ...updateData } = args;
@@ -299,7 +312,11 @@ export const getActiveStudySessionForUser = query({
     for (const s of results) {
       if (!s.endTime && !s.isCompleted) {
         const plannedMs = (s.plannedDuration || 0) * 60 * 1000;
-        if (plannedMs > 0 && s.startTime && now > s.startTime + plannedMs + graceMs) {
+        if (
+          plannedMs > 0 &&
+          s.startTime &&
+          now > s.startTime + plannedMs + graceMs
+        ) {
           // consider expired; skip it (frontend can call deleteExpiredStudySessions to clean up)
           continue;
         }
@@ -325,7 +342,11 @@ export const getActiveStudySessionsForUser = query({
     return results.filter((s) => {
       if (s.endTime || s.isCompleted) return false;
       const plannedMs = (s.plannedDuration || 0) * 60 * 1000;
-      if (plannedMs > 0 && s.startTime && now > s.startTime + plannedMs + graceMs) {
+      if (
+        plannedMs > 0 &&
+        s.startTime &&
+        now > s.startTime + plannedMs + graceMs
+      ) {
         return false;
       }
       return true;
@@ -403,17 +424,19 @@ export const getStudySession = query({
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) return null;
+    const sAny: any = session;
     return {
-      _id: session._id,
-      userId: session.userId,
-      title: session.title,
-      subject: session.subject,
-      startTime: session.startTime,
-      endTime: session.endTime,
-      duration: session.duration || 0,
-      plannedDuration: session.plannedDuration || 0,
-      isCompleted: session.isCompleted || false,
-      notes: session.notes || "",
+      _id: sAny._id,
+      userId: sAny.userId,
+      title: sAny.title,
+      subject: sAny.subject,
+      startTime: sAny.startTime,
+      endTime: sAny.endTime,
+      duration: sAny.duration || 0,
+      plannedDuration: sAny.plannedDuration || 0,
+      isCompleted: sAny.isCompleted || false,
+      notes: sAny.notes || "",
+      audioQueue: sAny.audioQueue || [],
     };
   },
 });

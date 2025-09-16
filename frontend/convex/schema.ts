@@ -508,6 +508,10 @@ export default defineSchema({
     // Related content
     filesUsed: v.optional(v.array(v.string())), // File IDs
     notes: v.optional(v.string()),
+    // Optional persisted audio queue for background music
+    audioQueue: v.optional(
+      v.array(v.object({ id: v.string(), name: v.string(), url: v.string() }))
+    ),
 
     // Status
     isCompleted: v.optional(v.boolean()),

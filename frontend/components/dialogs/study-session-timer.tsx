@@ -36,7 +36,6 @@ import {
   Focus,
   BookOpen,
   Target,
-  MapPin,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -57,7 +56,7 @@ export function StudySessionTimer({
   const { user } = useConvexUser();
   const [open, setOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // session-level pause
   const [time, setTime] = useState(0); // seconds
   const [plannedMinutes, setPlannedMinutes] = useState(25);
   const intervalRef = useRef<number | null>(null);
@@ -82,16 +81,47 @@ export function StudySessionTimer({
 
   // Audio settings
   const [soundEnabled, setSoundEnabled] = useState(true);
+  // Background music queue
+  interface AudioItem {
+    id: string;
+    name: string;
+    url: string;
+    uploading?: boolean;
+    uploadError?: boolean;
+  }
+  const [audioQueue, setAudioQueue] = useState<AudioItem[]>([]);
+
+  // helper: persistable stripped queue
+  const sanitizeAudioQueue = (arr: AudioItem[] | undefined) => {
+    if (!arr || arr.length === 0) return undefined;
+    return arr.map((a) => ({ id: a.id, name: a.name, url: a.url }));
+  };
+
+  const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(0);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [audioVolume, setAudioVolume] = useState<number>(0.5);
+
+  // single stable audio element reference
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // used to cancel previously started play attempts (serialize play requests)
+  const playRequestIdRef = useRef<number>(0);
+  // track current audio src to avoid reloads
+  const currentSrcRef = useRef<string | null>(null);
+  // flag: is a play() attempt currently in-flight for the audio element?
+  const playInFlightRef = useRef<boolean>(false);
+
+  // user pause flag: when user explicitly pauses any track, automatic autoplay is suppressed
+  const [userPaused, setUserPaused] = useState<boolean>(false);
+
   const [currentSessionId, setCurrentSessionId] =
     useState<Id<"studySessions"> | null>(null);
 
-  // Helper to safely extract an id whether Convex returned an Id branded string or a full object
+  // Convex helpers & queries
   const extractId = (val: any) => {
     if (!val && val !== 0) return null;
     return typeof val === "string" ? val : val && (val._id || val);
   };
 
-  // Try to resume any active sessions persisted on the server
   const activeSessions = useQuery(
     api.analytics.getActiveStudySessionsForUser,
     user ? { userId: user.clerkId } : "skip"
@@ -99,19 +129,98 @@ export function StudySessionTimer({
 
   const sessionToEdit = useQuery(
     api.analytics.getStudySession,
-    // only fetch when editSessionId provided
     editSessionId
       ? { sessionId: editSessionId as unknown as Id<"studySessions"> }
       : "skip"
   );
 
-  // Queries
+  // Load persisted audioQueue from the session when editing or resuming
+  useEffect(() => {
+    try {
+      const s: any = sessionToEdit as any;
+      if (s && s.audioQueue && Array.isArray(s.audioQueue)) {
+        setAudioQueue(s.audioQueue);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [sessionToEdit]);
+
+  // If resuming an active session (e.g., page reload) pick up audioQueue and play if appropriate
+  useEffect(() => {
+    try {
+      const activeAny = activeSessions as any[] | undefined;
+      if (!currentSessionId && activeAny && activeAny.length > 0) {
+        const preferred = editSessionId
+          ? activeAny.find((s: any) => extractId(s) === editSessionId)
+          : null;
+        const sessionToResume = preferred || activeAny[0];
+        if (sessionToResume) {
+          const resumeId = extractId(sessionToResume);
+          setCurrentSessionId(resumeId as any);
+          setIsActive(true);
+          setIsPaused(!!sessionToResume.pausedAt);
+
+          const now = Date.now();
+          const startTime = sessionToResume.startTime || now;
+          const accumulated = sessionToResume.accumulatedPausedSeconds || 0;
+          let elapsed = Math.floor((now - startTime) / 1000) - accumulated;
+          const pausedAt = sessionToResume.pausedAt || 0;
+          if (pausedAt) {
+            elapsed = Math.floor((pausedAt - startTime) / 1000) - accumulated;
+          }
+          setTime(Math.max(0, elapsed));
+
+          // restore queue; UI will show it
+          if (
+            sessionToResume.audioQueue &&
+            Array.isArray(sessionToResume.audioQueue)
+          ) {
+            setAudioQueue(sessionToResume.audioQueue);
+            setCurrentAudioIndex(0);
+            // do NOT clear userPaused — respect user's previous explicit pause if present
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessions, editSessionId]);
+
+  // Populate form when editing
+  useEffect(() => {
+    const s: any = sessionToEdit as any;
+    if (!s) return;
+    try {
+      setTitle(s.title || "");
+      setDescription(s.description || "");
+      setPlannedMinutes(s.plannedDuration || s.plannedMinutes || 25);
+      setCourseId(s.courseId || preSelectedCourseId || "none");
+      setIsCompleted(!!s.isCompleted);
+      setNotes(s.notes || "");
+
+      if (!s.endTime) {
+        setCurrentSessionId(extractId(s) as any);
+        setIsActive(true);
+        setIsPaused(!!s.pausedAt);
+      }
+
+      // If the session has audioQueue persisted, restore it (so UI shows queue)
+      if (s.audioQueue && Array.isArray(s.audioQueue)) {
+        setAudioQueue(s.audioQueue);
+      }
+    } catch (e) {
+      console.debug("populate session failed", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionToEdit]);
+
+  // Queries & mutations
   const courses = useQuery(
     api.courses.getCourses,
     user ? { userId: user.clerkId } : "skip"
   );
-
-  // Mutations
   const createStudySession = useMutation(api.analytics.createStudySession);
   const updateStudySession = useMutation(api.analytics.updateStudySession);
   const createNotification = useMutation(api.notifications.createNotification);
@@ -139,122 +248,17 @@ export function StudySessionTimer({
     { value: "group", label: "Group Study" },
   ];
 
+  // Ticking and session auto-stop
   useEffect(() => {
-    // If another tab set a pending session to open, open this dialog when it matches our editSessionId
-    try {
-      if (editSessionId) {
-        const pending =
-          typeof window !== "undefined"
-            ? localStorage.getItem("openStudySessionOnLoad")
-            : null;
-        if (pending && pending === editSessionId) {
-          setOpen(true);
-          try {
-            localStorage.removeItem("openStudySessionOnLoad");
-          } catch (e) {}
-        }
-      }
-    } catch (e) {
-      // ignore storage access errors
-    }
-
-    const storageHandler = (ev: StorageEvent) => {
-      if (ev.key !== "openStudySessionOnLoad") return;
-      if (!editSessionId) return;
-      try {
-        const val = ev.newValue;
-        if (val && val === editSessionId) {
-          setOpen(true);
-          try {
-            localStorage.removeItem("openStudySessionOnLoad");
-          } catch (e) {}
-        }
-      } catch (e) {}
-    };
-    window.addEventListener("storage", storageHandler);
-    // Local typed aliases to avoid TS errors when Convex generated types are narrower
-    const sessionToEditAny = sessionToEdit as any;
-    const activeSessionsAny = activeSessions as any[] | undefined;
-
-    // If component is mounted in edit mode, populate form
-    if (sessionToEditAny) {
-      try {
-        setTitle(sessionToEditAny.title || "");
-        setDescription(sessionToEditAny.description || "");
-        setPlannedMinutes(sessionToEditAny.plannedDuration || 25);
-        setCourseId(sessionToEditAny.courseId || preSelectedCourseId || "none");
-        setIsCompleted(!!sessionToEditAny.isCompleted);
-        setNotes(sessionToEditAny.notes || "");
-        // If the session is active (no endTime), set currentSessionId so controls show
-        if (!sessionToEditAny.endTime) {
-          setCurrentSessionId(extractId(sessionToEditAny) as any);
-          setIsActive(true);
-          setIsPaused(!!sessionToEditAny.pausedAt);
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    // If there's an active persisted session and we don't have a local session id, resume
-    if (
-      !currentSessionId &&
-      activeSessionsAny &&
-      activeSessionsAny.length > 0
-    ) {
-      try {
-        // Prefer the session that matches editSessionId (if editing), otherwise pick the first active session
-        const preferred = editSessionId
-          ? activeSessionsAny.find((s: any) => extractId(s) === editSessionId)
-          : null;
-        const sessionToResume = preferred || activeSessionsAny[0];
-        if (sessionToResume) {
-          const resumeId = extractId(sessionToResume);
-          setCurrentSessionId(resumeId as any);
-          setIsActive(true);
-          setIsPaused(
-            !!(typeof sessionToResume === "string"
-              ? false
-              : sessionToResume.pausedAt)
-          );
-          // Compute elapsed time = now - startTime - accumulatedPausedSeconds
-          const now = Date.now();
-          const startTime =
-            (typeof sessionToResume === "string"
-              ? now
-              : sessionToResume.startTime) || now;
-          const accumulated =
-            (typeof sessionToResume === "string"
-              ? 0
-              : sessionToResume.accumulatedPausedSeconds) || 0;
-          let elapsed = Math.floor((now - startTime) / 1000) - accumulated;
-          const pausedAt =
-            typeof sessionToResume === "string" ? 0 : sessionToResume.pausedAt;
-          if (pausedAt) {
-            // If paused, subtract time since paused
-            elapsed = Math.floor((pausedAt - startTime) / 1000) - accumulated;
-          }
-          setTime(Math.max(0, elapsed));
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
     if (isActive && !isPaused) {
-      // Tick every second and auto-stop when planned duration reached
       intervalRef.current = window.setInterval(() => {
         setTime((prevTime) => {
           const next = prevTime + 1;
-          // If plannedMinutes set and we've reached or exceeded planned duration, stop
           if (plannedMinutes > 0 && next >= plannedMinutes * 60) {
-            // Clear interval here to avoid race where state updates continue
             if (intervalRef.current !== null) {
               window.clearInterval(intervalRef.current);
               intervalRef.current = null;
             }
-            // End the session by calling handleStop asynchronously (don't await here)
-            // Use a microtask to avoid updating state mid-render
             Promise.resolve().then(() => {
               handleStop();
             });
@@ -267,6 +271,12 @@ export function StudySessionTimer({
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      // Pause audio when session stops/pauses
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      } catch (e) {}
     }
 
     return () => {
@@ -274,46 +284,202 @@ export function StudySessionTimer({
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      window.removeEventListener("storage", storageHandler);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, isPaused]);
 
-  // Persist pause/resume state when isPaused changes
+  // create single Audio element on mount and attach stable handler for ended
   useEffect(() => {
-    if (!currentSessionId) return;
-    const persistPause = async () => {
-      try {
-        const activeSessionsAny = activeSessions as any[] | undefined;
-        if (isPaused) {
-          // set pausedAt
-          await updateStudySession({
-            sessionId: currentSessionId,
-            pausedAt: Date.now(),
-          });
-        } else {
-          // resume: calculate additional paused seconds
-          const now = Date.now();
-          // find the session in the active sessions list (best-effort)
-          const session =
-            (activeSessionsAny || []).find(
-              (s: any) => extractId(s) === currentSessionId
-            ) || null;
-          const pausedAt = session?.pausedAt || 0;
-          const additional = pausedAt ? Math.floor((now - pausedAt) / 1000) : 0;
-          const accumulated =
-            (session?.accumulatedPausedSeconds || 0) + additional;
-          await updateStudySession({
-            sessionId: currentSessionId,
-            pausedAt: undefined as any,
-            accumulatedPausedSeconds: accumulated,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to persist pause/resume:", err);
-      }
+    audioRef.current = new Audio();
+    audioRef.current.preload = "auto";
+    audioRef.current.crossOrigin = "anonymous";
+
+    const el = audioRef.current;
+    el.onended = () => {
+      // when a track ends, advance index; manager effect will restart playback if allowed
+      setCurrentAudioIndex((prev) => {
+        const next = (prev + 1) % Math.max(1, audioQueue.length || 1);
+        // clear playingIndex; manager effect will set it if auto-play allowed
+        setPlayingIndex(null);
+        return next;
+      });
     };
-    persistPause();
-  }, [isPaused, currentSessionId, activeSessions]);
+
+    // keep UI in sync with element 'pause'/'play' events (defensive)
+    const onPause = () => {
+      setPlayingIndex(null);
+    };
+    const onPlay = () => {
+      // If the audio element actually started playing, ensure playingIndex matches currentAudioIndex
+      setPlayingIndex((idx) => {
+        return currentAudioIndex;
+      });
+    };
+    el.addEventListener("pause", onPause);
+    el.addEventListener("play", onPlay);
+
+    return () => {
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+          audioRef.current.onended = null;
+          audioRef.current.removeEventListener("pause", onPause);
+          audioRef.current.removeEventListener("play", onPlay);
+        }
+      } catch (e) {}
+      audioRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // helper to actually play a track by index, serialized via playRequestIdRef
+  const playTrack = async (idx: number) => {
+    try {
+      if (!audioRef.current) return;
+      if (!audioQueue || audioQueue.length === 0) return;
+      const safeIdx = Math.min(Math.max(0, idx), audioQueue.length - 1);
+      const track = audioQueue[safeIdx];
+      if (!track) return;
+
+      const el = audioRef.current;
+
+      // If the requested track is already the current src and not paused -> just update state
+      if (currentSrcRef.current === track.url && !el.paused) {
+        setCurrentAudioIndex(safeIdx);
+        setPlayingIndex(safeIdx);
+        return;
+      }
+
+      // If a play is already in flight for the same URL, don't issue another
+      if (playInFlightRef.current && currentSrcRef.current === track.url) {
+        return;
+      }
+
+      // create a new request id and mark play in-flight
+      playRequestIdRef.current += 1;
+      const myRequest = playRequestIdRef.current;
+      playInFlightRef.current = true;
+
+      // Pause before changing src to avoid "interrupted by new load" race
+      try {
+        el.pause();
+      } catch (e) {}
+
+      currentSrcRef.current = track.url;
+      el.src = track.url;
+      el.loop = false;
+      try {
+        el.volume = audioVolume;
+      } catch (e) {}
+      try {
+        el.muted = !soundEnabled;
+      } catch (e) {}
+
+      // attempt to play. if this request gets superseded, we ignore result
+      await el
+        .play()
+        .then(() => {
+          // only accept if this request is still the latest
+          if (playRequestIdRef.current === myRequest) {
+            setCurrentAudioIndex(safeIdx);
+            setPlayingIndex(safeIdx);
+          }
+        })
+        .catch((err: any) => {
+          // ignore AbortError caused by an immediate pause; we don't want noisy console spam
+          const isAbort =
+            err &&
+            (err.name === "AbortError" ||
+              /interrupted by/i.test(String(err?.message || "")));
+          if (!isAbort && process.env.NODE_ENV !== "production") {
+            console.debug("playTrack play failed", err);
+          }
+          // if this request is still the latest, clear playingIndex to reflect we are not playing
+          if (playRequestIdRef.current === myRequest) {
+            setPlayingIndex(null);
+          }
+        })
+        .finally(() => {
+          // no matter what, this particular attempt is done
+          if (playRequestIdRef.current === myRequest) {
+            playInFlightRef.current = false;
+          } else {
+            // a newer request exists; just mark this attempt as done
+            playInFlightRef.current = false;
+          }
+        });
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production")
+        console.debug("playTrack error", e);
+      playInFlightRef.current = false;
+    }
+  };
+
+  // helper to pause current playback and cancel pending play attempts
+  // if `byUser` is true, set userPaused so auto-play is suppressed until the user explicitly plays again
+  const pauseAudio = (byUser = false) => {
+    try {
+      // increment request id to cancel any pending/ongoing play attempts
+      playRequestIdRef.current += 1;
+      playInFlightRef.current = false;
+      if (audioRef.current) audioRef.current.pause();
+      setPlayingIndex(null);
+      if (byUser) setUserPaused(true);
+    } catch (e) {}
+  };
+
+  // manager effect: decide whether we should auto-play based on session state and queue
+  useEffect(() => {
+    try {
+      // If user explicitly paused playback, do not auto-play anything until they unpause
+      if (userPaused) {
+        pauseAudio(false); // cancel pending plays but don't change userPaused flag here
+        return;
+      }
+
+      const hasQueue = !!(audioQueue && audioQueue.length > 0);
+
+      // If conditions are not right -> ensure paused
+      if (!isActive || isPaused || !hasQueue || !soundEnabled) {
+        pauseAudio(false);
+        return;
+      }
+
+      // If audio element already playing (not paused) and playingIndex aligns, don't restart
+      if (
+        audioRef.current &&
+        !audioRef.current.paused &&
+        playingIndex !== null
+      ) {
+        return;
+      }
+
+      // Otherwise request playing currentAudioIndex
+      const idx =
+        currentAudioIndex >= (audioQueue?.length || 1) ? 0 : currentAudioIndex;
+      playTrack(idx);
+    } catch (e) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isActive,
+    isPaused,
+    audioQueue,
+    currentAudioIndex,
+    soundEnabled,
+    userPaused,
+    playingIndex,
+  ]);
+
+  // Keep volume/mute in sync (applies to the single audioRef instance)
+  useEffect(() => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.volume = audioVolume;
+        audioRef.current.muted = !soundEnabled;
+      }
+    } catch (e) {}
+  }, [audioVolume, soundEnabled]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -335,12 +501,12 @@ export function StudySessionTimer({
     return Math.min((time / (plannedMinutes * 60)) * 100, 100);
   };
 
+  // START - ensure audio playback starts from the user gesture
   const handleStart = async () => {
     if (!user) {
       sonnerToast.error("You must be logged in to start a study session.");
       return;
     }
-
     if (!title.trim()) {
       sonnerToast.error("Please provide a session title.");
       return;
@@ -361,10 +527,9 @@ export function StudySessionTimer({
         location: location.trim() || undefined,
         environment,
         notes: notes.trim() || undefined,
+        audioQueue: sanitizeAudioQueue(audioQueue),
       });
 
-      // Convex insert may return either the full created document or just the id string/Id type.
-      // Safely derive the session id without accessing `._id` on a string.
       let sessionId: any = null;
       if (created) {
         sessionId = extractId(created) || (created as any);
@@ -374,12 +539,22 @@ export function StudySessionTimer({
       setIsPaused(false);
       setTime(0);
 
-      if (soundEnabled) {
-        // Play start sound (you can implement audio later)
+      // Important: user gesture - clear userPaused (user is explicitly starting session)
+      setUserPaused(false);
+
+      // Important: attempt to start audio inside this user gesture
+      try {
+        if (audioQueue && audioQueue.length > 0 && soundEnabled) {
+          // playTrack will serialize and avoid races
+          await playTrack(0);
+        }
+      } catch (e) {
+        // ignore audio failures
       }
 
       sonnerToast.success(`"${title}" session is now active.`);
-      // create an in-app notification for the started session
+
+      // create an in-app notification for the started session (non-fatal)
       try {
         const sessionId = extractId(created);
         await createNotification({
@@ -394,20 +569,25 @@ export function StudySessionTimer({
             : undefined,
           actionLabel: "Open Planner",
         });
-      } catch (e) {
-        // non-fatal
-      }
+      } catch (e) {}
     } catch (error) {
       console.error("Error starting study session:", error);
       sonnerToast.error("Failed to start study session. Please try again.");
     }
     setIsStarting(false);
   };
+  // END handleStart
 
   const handlePause = () => {
-    setIsPaused(!isPaused);
-    if (soundEnabled) {
-      // Play pause sound
+    // session-level pause/resume
+    const next = !isPaused;
+    setIsPaused(next);
+    if (next) {
+      // pausing session: stop audio (but don't mark userPaused)
+      pauseAudio(false);
+    } else {
+      // resuming session: manager effect will handle restart (unless userPaused)
+      setIsPaused(false);
     }
   };
 
@@ -418,46 +598,31 @@ export function StudySessionTimer({
       await updateStudySession({
         sessionId: currentSessionId,
         endTime: Date.now(),
-        duration: Math.floor(time / 60), // Convert to minutes
+        duration: Math.floor(time / 60), // minutes
         focusScore,
         productivityRating,
         distractionCount,
         breakCount,
         notes: notes.trim() || undefined,
+        audioQueue: sanitizeAudioQueue(audioQueue),
         isCompleted,
         wasInterrupted,
       });
 
       setIsActive(false);
       setIsPaused(false);
-      setTime(0);
-      setCurrentSessionId(null);
-
-      if (soundEnabled) {
-        // Play completion sound
-      }
 
       sonnerToast.success(
         `Session lasted ${formatTime(time)} and has been saved.`
       );
 
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setCourseId(preSelectedCourseId || "none");
-      setSessionType("focused");
-      setStudyMethod("pomodoro");
-      setLocation("");
-      setEnvironment("quiet");
-      setNotes("");
-      setFocusScore(85);
-      setProductivityRating(4);
-      setDistractionCount(0);
-      setBreakCount(0);
-      setIsCompleted(false);
-      setWasInterrupted(false);
-
-      setOpen(false);
+      // stop audio
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          setPlayingIndex(null);
+        }
+      } catch (e) {}
       onSuccess?.();
     } catch (error) {
       console.error("Error ending study session:", error);
@@ -465,7 +630,180 @@ export function StudySessionTimer({
     }
   };
 
-  // Allow saving edits to metadata when in edit mode (not stopping the session)
+  // Audio file selection + upload
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const placeholders: Array<AudioItem> = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files.item(i);
+      if (!f) continue;
+      const id = String(Date.now()) + `-${i}`;
+      const localUrl = URL.createObjectURL(f);
+      placeholders.push({ id, name: f.name, url: localUrl, uploading: true });
+    }
+    setAudioQueue((prev) => [...prev, ...placeholders]);
+
+    (async () => {
+      for (let i = 0; i < files.length; i++) {
+        const f = files.item(i);
+        if (!f) continue;
+        // reader
+        const reader = new FileReader();
+        const dataUrl: string = await new Promise((res, rej) => {
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(f as Blob);
+        });
+
+        // upload retry logic
+        const maxAttempts = 3;
+        let attempt = 0;
+        let uploadedUrl: string | null = null;
+        while (attempt < maxAttempts && !uploadedUrl) {
+          try {
+            const resp = await fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                filename: f.name,
+                contentType: f.type,
+                data: dataUrl,
+              }),
+            });
+            const json = await resp.json();
+            if (resp.ok && json.url) {
+              uploadedUrl = json.url;
+            } else {
+              attempt += 1;
+              await new Promise((r) => setTimeout(r, 500 * attempt));
+            }
+          } catch (e) {
+            attempt += 1;
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+          }
+        }
+
+        setAudioQueue((prev) => {
+          const arr = [...prev];
+          const idx = arr.findIndex((p) => p.name === f.name && p.uploading);
+          if (idx === -1) return prev;
+          if (uploadedUrl) {
+            arr[idx] = {
+              id: arr[idx].id,
+              name: f.name,
+              url: uploadedUrl,
+              uploading: false,
+            };
+          } else {
+            arr[idx] = { ...arr[idx], uploading: false, uploadError: true };
+          }
+
+          // persist to server (best-effort)
+          (async () => {
+            try {
+              const sid = currentSessionId || (sessionToEdit as any)?._id;
+              if (sid)
+                await updateStudySession({
+                  sessionId: sid as any,
+                  audioQueue: sanitizeAudioQueue(arr),
+                });
+            } catch (e) {
+              console.error("persist audioQueue failed", e);
+            }
+          })();
+
+          return arr;
+        });
+      }
+    })();
+  };
+
+  const moveAudio = (index: number, dir: -1 | 1) => {
+    setAudioQueue((prev) => {
+      const arr = [...prev];
+      const to = index + dir;
+      if (to < 0 || to >= arr.length) return arr;
+      const tmp = arr[to];
+      arr[to] = arr[index];
+      arr[index] = tmp;
+      const next = arr;
+      (async () => {
+        try {
+          const sid = currentSessionId || (sessionToEdit as any)?._id;
+          if (sid)
+            await updateStudySession({
+              sessionId: sid as any,
+              audioQueue: sanitizeAudioQueue(next),
+            });
+        } catch (e) {
+          console.error("persist move failed", e);
+        }
+      })();
+      return next;
+    });
+
+    // Reset to a safe index to avoid stale index mapping
+    setCurrentAudioIndex(0);
+  };
+
+  const removeAudio = (index: number) => {
+    setAudioQueue((prev) => {
+      const arr = [...prev];
+      const [removed] = arr.splice(index, 1);
+      try {
+        if (
+          removed &&
+          removed.url &&
+          typeof removed.url === "string" &&
+          removed.url.startsWith("blob:")
+        )
+          URL.revokeObjectURL(removed.url);
+      } catch (e) {}
+      const next = arr;
+      (async () => {
+        try {
+          const sid = currentSessionId || (sessionToEdit as any)?._id;
+          if (sid)
+            await updateStudySession({
+              sessionId: sid as any,
+              audioQueue: sanitizeAudioQueue(next),
+            });
+        } catch (e) {
+          console.error("persist remove failed", e);
+        }
+      })();
+      return next;
+    });
+
+    // If user removed currently playing track, stop playback
+    setPlayingIndex((prev) => {
+      if (prev === index) {
+        pauseAudio(true);
+        return null;
+      }
+      return prev;
+    });
+
+    // normalize index
+    setCurrentAudioIndex((prev) =>
+      Math.max(0, Math.min(prev, Math.max(0, audioQueue.length - 2)))
+    );
+  };
+
+  // Manual per-item control used in UI
+  const toggleTrackPlay = (idx: number) => {
+    if (playingIndex === idx) {
+      // user-initiated pause -> set userPaused so manager doesn't immediately restart
+      pauseAudio(true);
+    } else {
+      // user-initiated play -> clear userPaused and start track
+      setUserPaused(false);
+      playTrack(idx);
+    }
+  };
+
+  // Save edits (unchanged)
   const handleSaveEdits = async () => {
     const sessionToEditAny = sessionToEdit as any;
     if (!sessionToEditAny && !currentSessionId) return;
@@ -498,7 +836,7 @@ export function StudySessionTimer({
   const handleDistraction = () => {
     setDistractionCount((prev) => prev + 1);
     if (soundEnabled) {
-      // Play distraction sound
+      // play cue
     }
   };
 
@@ -588,7 +926,11 @@ export function StudySessionTimer({
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={() => setSoundEnabled(!soundEnabled)}
+                onClick={() => {
+                  // toggling sound does not clear userPaused — it's a separate user intent
+                  setSoundEnabled((s) => !s);
+                }}
+                title={soundEnabled ? "Mute audio" : "Unmute audio"}
               >
                 {soundEnabled ? (
                   <Volume2 className="w-4 h-4" />
@@ -810,9 +1152,107 @@ export function StudySessionTimer({
               </div>
             </div>
           )}
-        </div>
 
-        {/* Removed floating "Open Timer in Planner" to keep UI focused on Edit/Delete in planner list */}
+          {/* Background music upload and queue (always visible) */}
+          <div className="space-y-2">
+            <Label>Background Music</Label>
+            <div className="flex items-center gap-2">
+              <input
+                id="audioUpload"
+                type="file"
+                accept="audio/*"
+                multiple
+                onChange={(e) => handleFilesSelected(e.target.files)}
+              />
+            </div>
+
+            {/* Volume control: always visible so user can tweak even if queue empty */}
+            <div className="flex items-center gap-2 mt-2">
+              <label className="text-sm">Volume</label>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={audioVolume}
+                onChange={(e) => setAudioVolume(Number(e.target.value))}
+              />
+              <div className="text-xs text-muted-foreground ml-2">
+                {Math.round(audioVolume * 100)}%
+              </div>
+            </div>
+
+            {/* Queue */}
+            {audioQueue.length > 0 && (
+              <div className="space-y-2 mt-2">
+                {audioQueue.map((a, idx) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 p-2 rounded border"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="text-sm font-medium truncate"
+                        style={{ maxWidth: 200 }}
+                      >
+                        {a.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {idx === currentAudioIndex && playingIndex === idx
+                          ? "Playing"
+                          : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveAudio(idx, -1);
+                        }}
+                        disabled={idx === 0}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveAudio(idx, 1);
+                        }}
+                        disabled={idx === audioQueue.length - 1}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTrackPlay(idx);
+                        }}
+                      >
+                        {playingIndex === idx ? "Pause" : "Play"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs text-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeAudio(idx);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {!isActive && (
           <DialogFooter>
@@ -822,6 +1262,37 @@ export function StudySessionTimer({
               onClick={() => setOpen(false)}
             >
               Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                // Reset form to defaults
+                setTitle("");
+                setDescription("");
+                setCourseId(preSelectedCourseId || "none");
+                setSessionType("focused");
+                setStudyMethod("pomodoro");
+                setLocation("");
+                setEnvironment("quiet");
+                setNotes("");
+                setFocusScore(85);
+                setProductivityRating(4);
+                setDistractionCount(0);
+                setBreakCount(0);
+                setIsCompleted(false);
+                setWasInterrupted(false);
+                setAudioQueue([]);
+                setTime(0);
+                setCurrentSessionId(null);
+                // clear audio state
+                pauseAudio(false);
+                setUserPaused(false);
+                setCurrentAudioIndex(0);
+              }}
+              className="ml-2"
+              variant="ghost"
+            >
+              Reset
             </Button>
             {editSessionId && (
               <Button type="button" onClick={handleSaveEdits} className="ml-2">
