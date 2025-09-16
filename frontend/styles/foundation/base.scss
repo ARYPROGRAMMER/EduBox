@@ -1,0 +1,29 @@
+/** @format */
+@use '../global/' as gl;
+
+html {
+    --textColorMain: #eee;
+    --textColorSub: #2D203A;
+    --bgColor: #000;
+}
+
+body {
+    font-weight: 400;
+    line-height: 1.6;
+    touch-action: none;
+    color: var(--textColorMain);
+    font-family: ui-monospace, monospace;
+}
+
+img {
+    width: 100%;
+    height: auto;
+}
+
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+}

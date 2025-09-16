@@ -13,9 +13,11 @@ import { HeroVideoDialogDemo } from "./magicui/hero-video-output";
 import { MarqueeDemo } from "./magicui/marquee-output";
 import { HoverBorderGradient } from "./ui/hover-border-gradient";
 import { HeroHighlight, Highlight } from "./ui/hero-highlight";
-import { useRef } from "react";
 import YoutubeVideoForm from "./input-form-main";
 import { PointerHighlight } from "./ui/pointer-highlight";
+import { useEffect, useRef } from 'react';
+import { startDroplets } from "@/interactive-droplets/src/scripts";
+
 
 export function LandingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +25,17 @@ export function LandingPage() {
     target: containerRef,
     offset: ["start start", "end end"],
   });
+  
+  const webglRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    if (!isMobile && webglRef.current) {
+      startDroplets(webglRef.current);
+    }
+  }, []);
+
 
   // Parallax effects for background elements
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
@@ -169,6 +182,10 @@ export function LandingPage() {
           <div className="w-[600px] h-[600px] bg-gradient-to-r from-orange-400 via-pink-500 to-red-500 rounded-full blur-3xl"></div>
         </motion.div>
       </section>
+      
+      <div ref={webglRef} className="absolute inset-0 w-full h-full hidden sm:block" />
+
+      <div id="webgl" className="w-full h-full" />;
 
       <motion.section
         id="demo"

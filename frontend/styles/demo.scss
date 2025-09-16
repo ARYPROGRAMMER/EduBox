@@ -1,0 +1,15 @@
+/** @format */
+
+.text {
+    font-size: 15vw;
+    font-weight: 700;
+    font-family: "Uncial Antiqua", system-ui;
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#webgl canvas {
+    mix-blend-mode: difference;
+}

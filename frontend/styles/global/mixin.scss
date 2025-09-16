@@ -1,0 +1,13 @@
+@use 'sass:map';
+@use './variables' as var;
+
+// ----- MediaQuery -----
+@mixin mq($breakpoint: md) {
+    @if map.has-key(var.$breakpoints, $breakpoint) {
+        @media #{map.get(var.$breakpoints, $breakpoint)} {
+            @content;
+        }
+    } @else {
+        @error '$breakpoints に #{$breakpoint} というキーは存在しません。';
+    }
+}

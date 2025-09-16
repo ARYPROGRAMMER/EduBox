@@ -1,0 +1,95 @@
+/** @format */
+
+@use './global/' as gl;
+
+.frame {
+    position: fixed;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+        'title'
+        'links'
+        'tags'
+        // 'sponsor'
+    ;
+    gap: .5rem;
+    mix-blend-mode: difference;
+
+    @include gl.mq('md') {
+        padding: 1rem 2rem;
+        grid-template-rows: initial;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+        'title links'
+        'tags sponsor';
+        gap: 0;
+    }
+}
+
+.frame__title {
+    font-size: 1.2rem;
+    grid-area: title;
+
+    @include gl.mq('md') {
+        font-size: 1.4rem;
+    }
+
+    a {
+        display: block;
+        font-size: 1rem;
+        color: color-mix(in srgb, var(--textColorMain) 40%, var(--textColorSub));
+
+        @include gl.mq('md') {
+            font-size: 1.25rem;
+        }
+
+        @media (any-hover: hover) {
+            &:hover {
+                text-decoration: underline;
+                text-decoration-skip-ink: none;
+            }
+        }
+    }
+}
+
+.frame__links,
+.frame__tags {
+    justify-self: end;
+
+    & > ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    a {
+        transition-property: color;
+        transition-duration: 0.3s;
+
+        @media (any-hover: hover) {
+            &:hover {
+                color: color-mix(in srgb, var(--textColorMain) 40%, var(--textColorSub));
+            }
+        }
+    }
+}
+
+.frame__links {
+    grid-area: links;
+    @include gl.mq('md') {
+        justify-self: end;
+    }
+}
+
+.frame__tags {
+    grid-area: tags;
+
+    @include gl.mq('md') {
+        justify-self: initial;
+        align-self: end;
+    }
+}

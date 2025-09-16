@@ -1,0 +1,3 @@
+[submodule "frontend/interactive-droplets"]
+	path = frontend/interactive-droplets
+	url = https://github.com/ARYPROGRAMMER/subcomponent-threejs-edubox

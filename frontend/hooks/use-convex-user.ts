@@ -46,9 +46,21 @@ export function useConvexUser() {
     initializeUser();
   }, [isLoaded, isSignedIn, user, createOrUpdateUser, user?.updatedAt]); // Added user.updatedAt to trigger updates
 
+
+  useEffect(() => {
+    if (convexUser) {
+      setLocalConvexUser(convexUser as any);
+    }
+  }, [convexUser]);
+
+  // Clear local optimistic state on sign-out
+  useEffect(() => {
+    if (!isSignedIn) setLocalConvexUser(null);
+  }, [isSignedIn]);
+
   return {
-    // prefer the local optimistic user if present, otherwise the query result
-    user: localConvexUser || convexUser,
+    // prefer the live query result when available, otherwise fall back to the
+    user: convexUser || localConvexUser,
     isLoading: !isLoaded || (isSignedIn && !convexUser && !localConvexUser),
     clerkUser: user,
   };
