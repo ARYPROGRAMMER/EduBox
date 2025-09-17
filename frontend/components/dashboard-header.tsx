@@ -52,27 +52,6 @@ export function DashboardHeader({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [canUseAdvancedSearch]);
 
-  const getPageTitle = () => {
-    switch (true) {
-      case pathname === "/dashboard":
-        return "Dashboard Overview";
-      case pathname === "/dashboard/files":
-        return "File Management";
-      case pathname === "/dashboard/planner":
-        return "Academic Planner";
-      case pathname === "/dashboard/life-hub":
-        return "Life Hub";
-      case pathname === "/dashboard/analytics":
-        return "Analytics";
-      case pathname === "/dashboard/profile":
-        return "Profile Settings";
-      case pathname?.startsWith("/dashboard/chat"):
-        return "AI Assistant";
-      default:
-        return "Dashboard";
-    }
-  };
-
   const handleSearchClick = () => {
     if (canUseAdvancedSearch) {
       setShowGlobalSearch(true);
@@ -88,10 +67,10 @@ export function DashboardHeader({
 
   return (
     <header
-      className="h-16 sticky top-0 z-30 flex items-center justify-between
-       backdrop-blur-lg  shadow-sm transition-colors"
+      className="h-16  top-0 z-30 flex items-center justify-between
+      bg-transparent"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/10 via-transparent to-transparent dark:from-black/10 mix-blend-overlay" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 mix-blend-overlay" />
 
       <div className="flex justify-center z-10">
         {canUseAdvancedSearch && (

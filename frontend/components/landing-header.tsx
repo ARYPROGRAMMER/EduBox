@@ -13,13 +13,11 @@ import {
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 export function LandingHeader() {
-  const { theme, setTheme } = useTheme();
+  // Theme is forced on the landing page; no local theme control here.
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { isSignedIn } = useAuth();
@@ -27,11 +25,6 @@ export function LandingHeader() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleThemeToggle = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-  };
 
   const navItems = [
     { name: "Demo", link: "#demo" },
@@ -49,23 +42,8 @@ export function LandingHeader() {
     </Link>
   );
 
-  const themeToggle = (
-    <button
-      onClick={handleThemeToggle}
-      className="relative z-20 h-10 w-10 rounded-full flex items-center justify-center hover:bg-white/20 dark:hover:bg-neutral-800/50 transition-all duration-200 cursor-pointer border border-transparent hover:border-neutral-300 dark:hover:border-neutral-600"
-      aria-label="Toggle theme"
-      type="button"
-    >
-      {mounted ? (
-        <>
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-neutral-700 dark:text-neutral-300" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-neutral-700 dark:text-neutral-300" />
-        </>
-      ) : (
-        <div className="h-5 w-5" />
-      )}
-    </button>
-  );
+  // No theme toggle on landing page; theme is controlled globally.
+  const themeToggle = null;
 
   const authButtons =
     mounted && !isSignedIn ? (
@@ -118,7 +96,6 @@ export function LandingHeader() {
           {logoSection}
           <NavItems items={navItems} />
           <div className="flex items-center space-x-4 relative z-20">
-            {themeToggle}
             {authButtons}
           </div>
         </NavBody>
@@ -126,7 +103,6 @@ export function LandingHeader() {
           <MobileNavHeader>
             {logoSection}
             <div className="flex items-center space-x-3 relative z-10">
-              {themeToggle}
               <MobileNavToggle
                 isOpen={isMenuOpen}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}

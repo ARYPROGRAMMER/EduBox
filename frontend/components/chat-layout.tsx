@@ -8,9 +8,6 @@ import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { ButtonLoader } from "@/components/ui/loader";
 import { ChatInterface } from "@/components/chat-interface-convex";
 import { cn } from "@/lib/utils";
 import {
@@ -38,7 +35,6 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import dynamic from "next/dynamic";
 
-// Dynamically import the PulsingBorderShader to defer loading until needed
 const PulsingBorderShader = dynamic(() => import("./CircleWithPulse"), {
   ssr: false,
   loading: () => (
@@ -65,24 +61,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   const currentSessionId = params.sessionId as string;
 
-  // Get all chat sessions for the user
   const chatSessions = useQuery(
     api.chatSessions.getChatSessions,
     convexUser ? { userId: convexUser.clerkId } : "skip"
-  );
-
-  // Get current session if we have a sessionId (with latest data)
-  const currentSession = useQuery(
-    api.chatSessions.getChatSession,
-    convexUser && currentSessionId
-      ? { sessionId: currentSessionId, userId: convexUser.clerkId }
-      : "skip"
-  );
-
-  // Ensure we have the latest user data for AI context
-  const refreshedUserData = useQuery(
-    api.users.getUserByClerkId,
-    convexUser ? { clerkId: convexUser.clerkId } : "skip"
   );
 
   const deleteSession = useMutation(api.chatSessions.deleteSession);
@@ -90,19 +71,16 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const deleteAllSessions = useMutation(api.chatSessions.deleteAllSessions);
   const updateSession = useMutation(api.chatSessions.updateSession);
 
-  // Filter sessions based on search query and deduplicate by sessionId
   const filteredSessions =
     chatSessions?.filter((session) =>
       session.title?.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
 
-  // Remove duplicates by sessionId, keeping the most recent one
   const uniqueSessions = filteredSessions.reduce((acc, session) => {
     const existingIndex = acc.findIndex(
       (s) => s.sessionId === session.sessionId
     );
     if (existingIndex >= 0) {
-      // Keep the one with the most recent lastMessageAt or createdAt
       const existing = acc[existingIndex];
       const sessionTime = session.lastMessageAt || session.createdAt;
       const existingTime = existing.lastMessageAt || existing.createdAt;
@@ -115,20 +93,17 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     return acc;
   }, [] as typeof filteredSessions);
 
-  // Sort by most recent activity
   const sortedUniqueSessions = uniqueSessions.sort((a, b) => {
     const aTime = a.lastMessageAt || a.createdAt;
     const bTime = b.lastMessageAt || b.createdAt;
     return bTime - aTime;
   });
 
-  // Removed debug logging: duplicate session diagnostics were noisy in console
-  useEffect(() => {
-    // Intentionally left blank: duplicate-session detection retained for potential future use.
-    // If needed, re-enable logging here with caution.
-  }, [chatSessions, filteredSessions.length, uniqueSessions.length]);
-
-  // toggle positioning is handled by absolute positioning inside the sidebar container
+  useEffect(() => {}, [
+    chatSessions,
+    filteredSessions.length,
+    uniqueSessions.length,
+  ]);
 
   const handleNewChat = () => {
     const newSessionId = `session_${Date.now()}_${Math.random()
@@ -155,7 +130,6 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         userId: convexUser.clerkId,
       });
 
-      // If we're deleting the current session, redirect to new chat
       if (sessionId === currentSessionId) {
         router.push("/dashboard/chat");
       }
@@ -196,7 +170,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         userId: convexUser.clerkId,
       });
       setSelectedSessions([]);
-      // If current session was deleted, navigate away
+
       if (currentSessionId && selectedSessions.includes(currentSessionId)) {
         router.push("/dashboard/chat");
       }
@@ -239,7 +213,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     e: React.MouseEvent
   ) => {
     e.stopPropagation();
-    setEditingSessionId(sessionDbId); // Use database ID for uniqueness
+    setEditingSessionId(sessionDbId);
     setEditingTitle(currentTitle);
   };
 
@@ -288,24 +262,6 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   return (
     <div className="flex h-full w-full bg-background relative overflow-hidden">
-      {/* <div
-        className="absolute top-1/2 z-40 flex flex-col gap-2"
-        style={{ left: sidebarWidth - 20, transform: "translateY(-50%)" }}
-      >
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setIsSidebarOpen((s) => !s)}
-          className="backdrop-blur-md bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition"
-        >
-          {isSidebarOpen ? (
-            <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-          )}
-        </motion.button>
-      </div> */}
-
-      {/* Chat Sessions Sidebar */}
 
       <div
         className={cn(
@@ -430,7 +386,6 @@ export function ChatLayout({ children }: ChatLayoutProps) {
                               )}
                               onClick={(e) => e.stopPropagation()}
                               onCheckedChange={(v) => {
-                                // Radix returns boolean or 'indeterminate'
                                 const checked = v === true;
                                 toggleSelectSession(session.sessionId, checked);
                               }}
@@ -560,8 +515,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
             </ScrollArea>
           </div>
 
-          {/* Footer */}
-          {/* Footer */}
+         
           <div className="p-4 border-t bg-muted/50">
             <div className="flex items-center justify-between gap-3">
               <div
@@ -589,7 +543,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         </div>
       </div>
 
-      {/* Main Chat Area */}
+
       <div className="flex-1 flex flex-col w-full min-h-0 relative">
         {currentSessionId ? (
           <ChatInterface
@@ -599,7 +553,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center text-center max-w-md">
-              <div  className="relative w-[560px] h-[560px] mb-8 flex items-center justify-center animate-[breathe_4s_ease-in-out_infinite]" >
+              <div className="relative w-[560px] h-[560px] mb-8 flex items-center justify-center animate-[breathe_4s_ease-in-out_infinite]">
                 <PulsingBorderShader className="absolute inset-0" size={560} />
               </div>
               <h3 className="text-lg font-semibold mb-2">

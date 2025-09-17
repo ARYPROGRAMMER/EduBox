@@ -31,7 +31,6 @@ import { AssignmentCreationDialog } from "@/components/dialogs/assignment-creati
 import { StudySessionTimer } from "@/components/dialogs/study-session-timer";
 import {
   ResponsiveContainer,
-  LineChart,
   Line,
   AreaChart,
   Area,
@@ -47,6 +46,7 @@ import {
   Cell,
 } from "recharts";
 import MobileGate from "@/components/mobile-gate";
+import { DashboardHeader } from "@/components/dashboard-header";
 
 // Main component wrapped in React.memo with proper dependency tracking
 const AnalyticsPage = React.memo(() => {
@@ -299,6 +299,7 @@ const AnalyticsPage = React.memo(() => {
   if (!hasData && analyticsSummary !== undefined) {
     return (
       <div className="space-y-6">
+        <DashboardHeader mounted />
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Analytics</h2>
@@ -441,6 +442,7 @@ const AnalyticsPage = React.memo(() => {
 
   return (
     <div className="space-y-6">
+      <DashboardHeader mounted />
       {/* Reminders Panel - high visibility */}
       <div>
         <Card>
@@ -861,12 +863,10 @@ const AnalyticsPage = React.memo(() => {
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
-                    data={studiesByDay
-                      .slice(-8)
-                      .map((d) => ({
-                        name: d.date.slice(5),
-                        value: d.studyHours,
-                      }))}
+                    data={studiesByDay.slice(-8).map((d) => ({
+                      name: d.date.slice(5),
+                      value: d.studyHours,
+                    }))}
                     dataKey="value"
                     nameKey="name"
                     outerRadius={80}
@@ -904,7 +904,10 @@ AnalyticsPage.displayName = "AnalyticsPage";
 // Export with LockedFeature wrapper
 export default function AnalyticsPageWrapper() {
   return (
-    <LockedFeature feature={FeatureFlag.COURSE_ANALYTICS} requiredPlan="STARTER">
+    <LockedFeature
+      feature={FeatureFlag.COURSE_ANALYTICS}
+      requiredPlan="STARTER"
+    >
       <MobileGate>
         <AnalyticsPage />
       </MobileGate>

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -20,8 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ButtonLoader, CardSkeleton, PageLoader } from "@/components/ui/loader";
-import { useLoading, useAsyncOperation } from "@/components/ui/loading-context";
+import { CardSkeleton, PageLoader } from "@/components/ui/loader";
+import { useAsyncOperation } from "@/components/ui/loading-context";
 import {
   Select,
   SelectContent,
@@ -48,10 +48,8 @@ import {
   Trash2,
   FolderOpen,
   Search,
-  Plus,
   Eye,
   Share,
-  MoreVertical,
   Heart,
   Edit,
   Cloud,
@@ -77,9 +75,11 @@ interface FileItem {
 
 export function FileHubEnhanced() {
   const { user } = useUser();
-  const { canUse: canManageFiles, hasReachedLimit, checkAccess } = useFeatureGate(
-    FeatureFlag.FILE_MANAGEMENT
-  );
+  const {
+    canUse: canManageFiles,
+    hasReachedLimit,
+    checkAccess,
+  } = useFeatureGate(FeatureFlag.FILE_MANAGEMENT);
   const [mounted, setMounted] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -181,7 +181,9 @@ export function FileHubEnhanced() {
 
     // Check usage limit
     if (hasReachedLimit) {
-      toast.error("You have reached your file upload limit. Please upgrade your plan to continue.");
+      toast.error(
+        "You have reached your file upload limit. Please upgrade your plan to continue."
+      );
       return;
     }
 
@@ -474,17 +476,23 @@ export function FileHubEnhanced() {
               <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
                 <Archive className="w-8 h-8 mx-auto text-purple-600 mb-2" />
                 <h4 className="font-semibold">Unlimited Storage</h4>
-                <p className="text-sm text-muted-foreground">Never worry about storage limits</p>
+                <p className="text-sm text-muted-foreground">
+                  Never worry about storage limits
+                </p>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
                 <Share className="w-8 h-8 mx-auto text-blue-600 mb-2" />
                 <h4 className="font-semibold">Advanced Sharing</h4>
-                <p className="text-sm text-muted-foreground">Share with password protection</p>
+                <p className="text-sm text-muted-foreground">
+                  Share with password protection
+                </p>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-black/20 rounded-lg">
                 <Search className="w-8 h-8 mx-auto text-green-600 mb-2" />
                 <h4 className="font-semibold">Smart Search</h4>
-                <p className="text-sm text-muted-foreground">AI-powered content search</p>
+                <p className="text-sm text-muted-foreground">
+                  AI-powered content search
+                </p>
               </div>
             </div>
           </CardContent>
@@ -520,7 +528,7 @@ export function FileHubEnhanced() {
           </div>
         </Card>
       ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayFiles.map((file) => (
             <Card
               key={file._id}

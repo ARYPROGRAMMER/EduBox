@@ -10,22 +10,12 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLoader, Loader } from "@/components/ui/loader";
-import {
-  Send,
-  Bot,
-  User,
-  Lightbulb,
-  Clock,
-  BookOpen,
-  Calendar,
-  Users,
-  Lock,
-} from "lucide-react";
+import { Send, Bot, User, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { startUserContextPrefetch } from "@/lib/prefetch";
+import { WavyBackground } from "./ui/wavy-background";
 
 interface ChatInterfaceProps {
   onClose: () => void;
@@ -56,7 +46,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [streamingText, setStreamingText] = useState<string>("");
-  const [starterSuggestions, setStarterSuggestions] = useState<string[] | null>(null);
+  const [starterSuggestions, setStarterSuggestions] = useState<string[] | null>(
+    null
+  );
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,14 +69,15 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   const addMessage = useMutation(api.chatMessages.addMessage);
 
   // Dedup + filter messages like the original
-  const dedupedMessages = (messages || []).filter(
-    (m, i, arr) =>
-      arr.findIndex(
-        (x) =>
-          `${x.role}-${x.timestamp}-${x.message.slice(0, 40)}` ===
-          `${m.role}-${m.timestamp}-${m.message.slice(0, 40)}`
-      ) === i
-  ) || [];
+  const dedupedMessages =
+    (messages || []).filter(
+      (m, i, arr) =>
+        arr.findIndex(
+          (x) =>
+            `${x.role}-${x.timestamp}-${x.message.slice(0, 40)}` ===
+            `${m.role}-${m.timestamp}-${m.message.slice(0, 40)}`
+        ) === i
+    ) || [];
 
   // Get comprehensive user context for AI (with latest data)
   const userContext = useQuery(
@@ -123,7 +116,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       try {
         const contextSummary = JSON.stringify({
           // provide a lightweight summary to the suggestions endpoint
-          user: latestUserProfile?.fullName ? { name: latestUserProfile.fullName } : null,
+          user: latestUserProfile?.fullName
+            ? { name: latestUserProfile.fullName }
+            : null,
           stats: userContext?.statistics || {},
         });
 
@@ -136,7 +131,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
             const parsed = JSON.parse(rawStored);
             // Simple TTL check (stored as { suggestions, ts })
             if (parsed?.ts && Date.now() - parsed.ts < 1000 * 60 * 60 * 6) {
-              setStarterSuggestions(parsed.suggestions || fallbackQuickSuggestions.slice(0, 5));
+              setStarterSuggestions(
+                parsed.suggestions || fallbackQuickSuggestions.slice(0, 5)
+              );
               setLoadingSuggestions(false);
               return;
             }
@@ -160,9 +157,16 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
           ? data.suggestions.map((s: any) => String(s))
           : fallbackQuickSuggestions.slice(0, 5);
 
-        setStarterSuggestions(suggestions.length ? suggestions : fallbackQuickSuggestions.slice(0, 5));
+        setStarterSuggestions(
+          suggestions.length
+            ? suggestions
+            : fallbackQuickSuggestions.slice(0, 5)
+        );
         try {
-          localStorage.setItem(storageKey, JSON.stringify({ suggestions, ts: Date.now() }));
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify({ suggestions, ts: Date.now() })
+          );
         } catch (_) {}
       } catch (e) {
         setStarterSuggestions(fallbackQuickSuggestions.slice(0, 5));
@@ -212,10 +216,11 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     ) as HTMLElement | null;
     if (!viewport) return;
 
-    const scrollBottom = () => viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: "smooth"
-    });
+    const scrollBottom = () =>
+      viewport.scrollTo({
+        top: viewport.scrollHeight,
+        behavior: "smooth",
+      });
 
     if (dedupedMessages.length > prevLen.current) {
       scrollBottom();
@@ -229,7 +234,9 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   // Clear the transient stream only when the persisted assistant message covers it
   useEffect(() => {
     if (!streamingText) return;
-    const last = [...dedupedMessages].reverse().find((m) => m.role === "assistant");
+    const last = [...dedupedMessages]
+      .reverse()
+      .find((m) => m.role === "assistant");
     if (last && last.message.startsWith(streamingText.slice(0, 40))) {
       setStreamingText("");
       setIsTyping(false);
@@ -411,7 +418,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     try {
       // Use a different sessionId for title generation to avoid it appearing in chat
       const titleSessionId = `title-${sessionId}`;
-      
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -428,7 +435,8 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
 
       const data = await response.json();
       const raw = data.message || "";
-      const firstLine = raw.split(/\r?\n/).find((l: string) => l.trim().length > 0) || raw;
+      const firstLine =
+        raw.split(/\r?\n/).find((l: string) => l.trim().length > 0) || raw;
       const title = firstLine.trim().replace(/^['"]+|['"]+$/g, "");
       return title.slice(0, 120);
     } catch (e) {
@@ -455,8 +463,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-background">
-      {/* Header */}
+    <WavyBackground className="flex flex-col h-full w-full ">
       <div className="flex items-center justify-between pt-6 pl-4 pr-4 pb-6 border-b bg-card flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
@@ -479,12 +486,16 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
         <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="p-4">
             <div className="space-y-6 max-w-4xl mx-auto">
-              {dedupedMessages
-                .filter(message => 
+              {dedupedMessages.filter(
+                (message) =>
                   // Filter out only title generation messages from display
-                  !(message.role === "user" && message.message.includes("Create a concise, human-friendly title"))
-                )
-                .length === 0 && !streamingText ? (
+                  !(
+                    message.role === "user" &&
+                    message.message.includes(
+                      "Create a concise, human-friendly title"
+                    )
+                  )
+              ).length === 0 && !streamingText ? (
                 <div className="text-center py-8">
                   <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">
@@ -624,6 +635,6 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
           </form>
         </div>
       </div>
-    </div>
+    </WavyBackground>
   );
 }

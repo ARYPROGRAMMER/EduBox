@@ -25,6 +25,7 @@ import {
 import { motion } from "framer-motion";
 import { EventWithMeeting } from "@/components/event-with-meeting";
 import { cn } from "@/lib/utils";
+import { TextGenerateEffect } from "./ui/text-generate-effect";
 
 export function DashboardOverview() {
   const { user } = useUser();
@@ -89,6 +90,9 @@ export function DashboardOverview() {
     return `${days} days left`;
   };
 
+  const words = `Welcome back, ${user?.firstName || user?.fullName || "Student"}!`;
+  const pwords = `Here's your academic overview for today. You're doing great - keep up the excellent work!`;
+
   return (
 
     
@@ -102,13 +106,12 @@ export function DashboardOverview() {
           transition={{ duration: 0.6 }}
         >
           <div className="relative">
-            <h1 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4 leading-tight">
-              Welcome back, {user?.firstName || user?.fullName || "Student"}! 👋
-            </h1>
-            <p className="text-muted-foreground text-xl max-w-2xl">
-              Here&apos;s your academic overview for today. You&apos;re doing
-              great - keep up the excellent work!
-            </p>
+        
+            {/* Larger welcome heading: increased base and responsive sizes, tighter line-height */}
+            <TextGenerateEffect  className="text-4xl md:text-6xl lg:text-5xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-3 leading-snug" words={words} />
+            {/* Slightly smaller and more readable subheading */}
+            <TextGenerateEffect className="text-muted-foreground text-lg md:text-xl max-w-3xl" words={pwords} />
+
             {/* Decorative elements */}
             <div className="absolute -top-2 -right-2 w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
             <div className="absolute top-8 -left-4 w-16 h-16 bg-gradient-to-r from-indigo-400 to-blue-500 rounded-full opacity-10 blur-lg"></div>
@@ -171,7 +174,7 @@ export function DashboardOverview() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Card className="group relative overflow-hidden hover:shadow-xl transition-all duration-500 border-0 bg-gradient-to-br border-blue-200 shadow-lg">
+                  <Card className="group relative overflow-hidden hover:shadow-xl transition-all duration-500 border-0 bg-gradient-to-br border-b border-blue-50 shadow-lg">
                     <div
                       className={cn(
                         "absolute inset-0 bg-gradient-to-br opacity-5",
