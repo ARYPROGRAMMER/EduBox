@@ -81,6 +81,7 @@ export function StudySessionTimer({
 
   // Audio settings
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [audioPlaying, setAudioPlaying] = useState(false); // Separate control for audio playback
   // Background music queue
   interface AudioItem {
     id: string;
@@ -97,21 +98,22 @@ export function StudySessionTimer({
     return arr.map((a) => ({ id: a.id, name: a.name, url: a.url }));
   };
 
+  // Audio state management - improved synchronization
   const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(0);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [audioVolume, setAudioVolume] = useState<number>(0.5);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [previousVolume, setPreviousVolume] = useState<number>(0.5);
+  const [audioLoading, setAudioLoading] = useState<boolean>(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
-  // single stable audio element reference
+  // Audio element and control refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  // used to cancel previously started play attempts (serialize play requests)
   const playRequestIdRef = useRef<number>(0);
-  // track current audio src to avoid reloads
   const currentSrcRef = useRef<string | null>(null);
-  // flag: is a play() attempt currently in-flight for the audio element?
   const playInFlightRef = useRef<boolean>(false);
-
-  // user pause flag: when user explicitly pauses any track, automatic autoplay is suppressed
-  const [userPaused, setUserPaused] = useState<boolean>(false);
+  const userPausedRef = useRef<boolean>(false); // Use ref for immediate access
+  const [userPaused, setUserPaused] = useState<boolean>(false); // Keep state for UI
 
   const [currentSessionId, setCurrentSessionId] =
     useState<Id<"studySessions"> | null>(null);
@@ -216,6 +218,33 @@ export function StudySessionTimer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToEdit]);
 
+  // Reset form when opening dialog for new session
+  useEffect(() => {
+    if (open && !editSessionId) {
+      // Reset to defaults for new session
+      setTitle("");
+      setDescription("");
+      setPlannedMinutes(25);
+      setCourseId(preSelectedCourseId || "none");
+      setSessionType("focused");
+      setStudyMethod("pomodoro");
+      setLocation("");
+      setEnvironment("quiet");
+      setNotes("");
+      setAudioQueue([]);
+      setIsActive(false);
+      setIsPaused(false);
+      setTime(0);
+      setCurrentSessionId(null);
+      setIsCompleted(false);
+      setWasInterrupted(false);
+      setFocusScore(85);
+      setProductivityRating(4);
+      setDistractionCount(0);
+      setBreakCount(0);
+    }
+  }, [open, editSessionId, preSelectedCourseId]);
+
   // Queries & mutations
   const courses = useQuery(
     api.courses.getCourses,
@@ -288,133 +317,210 @@ export function StudySessionTimer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, isPaused]);
 
-  // create single Audio element on mount and attach stable handler for ended
+  // Audio element lifecycle management
   useEffect(() => {
-    audioRef.current = new Audio();
-    audioRef.current.preload = "auto";
-    audioRef.current.crossOrigin = "anonymous";
+    const audio = new Audio();
+    audio.preload = "metadata"; // Changed from "auto" to reduce bandwidth
+    audio.crossOrigin = "anonymous";
+    audio.volume = audioVolume;
+    audio.muted = !soundEnabled;
 
-    const el = audioRef.current;
-    el.onended = () => {
-      // when a track ends, advance index; manager effect will restart playback if allowed
-      setCurrentAudioIndex((prev) => {
-        const next = (prev + 1) % Math.max(1, audioQueue.length || 1);
-        // clear playingIndex; manager effect will set it if auto-play allowed
-        setPlayingIndex(null);
-        return next;
-      });
-    };
-
-    // keep UI in sync with element 'pause'/'play' events (defensive)
-    const onPause = () => {
+    // Enhanced event handlers
+    const handleEnded = () => {
       setPlayingIndex(null);
+      // Auto-advance to next track if not user-paused
+      if (!userPausedRef.current && audioQueue.length > 1) {
+        setCurrentAudioIndex((prev) => {
+          const next = (prev + 1) % audioQueue.length;
+          // Auto-play next track after a brief delay
+          setTimeout(() => {
+            if (!userPausedRef.current) {
+              playTrackByIndex(next);
+            }
+          }, 500);
+          return next;
+        });
+      }
     };
-    const onPlay = () => {
-      // If the audio element actually started playing, ensure playingIndex matches currentAudioIndex
-      setPlayingIndex((idx) => {
-        return currentAudioIndex;
-      });
+
+    const handleError = (e: Event) => {
+      console.warn("Audio error:", e);
+      setAudioError("Failed to load audio track");
+      setAudioLoading(false);
+      setPlayingIndex(null);
+      playInFlightRef.current = false;
     };
-    el.addEventListener("pause", onPause);
-    el.addEventListener("play", onPlay);
+
+    const handleLoadStart = () => {
+      setAudioLoading(true);
+      setAudioError(null);
+    };
+
+    const handleCanPlay = () => {
+      setAudioLoading(false);
+    };
+
+    const handlePause = () => {
+      // Only update playingIndex if this wasn't triggered by our own pause
+      if (!playInFlightRef.current) {
+        setPlayingIndex(null);
+      }
+    };
+
+    const handlePlay = () => {
+      setAudioLoading(false);
+      // Update playingIndex when audio actually starts
+      setPlayingIndex(currentAudioIndex);
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+    audio.addEventListener("loadstart", handleLoadStart);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
+
+    audioRef.current = audio;
 
     return () => {
-      try {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-          audioRef.current.onended = null;
-          audioRef.current.removeEventListener("pause", onPause);
-          audioRef.current.removeEventListener("play", onPlay);
-        }
-      } catch (e) {}
+      // Comprehensive cleanup
+      audio.pause();
+      audio.src = "";
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      audio.removeEventListener("loadstart", handleLoadStart);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
       audioRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Only run once on mount
 
-  // helper to actually play a track by index, serialized via playRequestIdRef
-  const playTrack = async (idx: number) => {
+  // Cleanup blob URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      try {
+        audioQueue.forEach((track) => {
+          if (
+            track &&
+            track.url &&
+            typeof track.url === "string" &&
+            track.url.startsWith("blob:")
+          ) {
+            URL.revokeObjectURL(track.url);
+          }
+        });
+      } catch (e) {
+        console.error("Error cleaning up blob URLs:", e);
+      }
+    };
+  }, []); // Empty dependency array - only run on unmount
+
+  // Improved audio playback with better error handling and state management
+  const playTrackByIndex = async (idx: number, byUser = false) => {
     try {
-      if (!audioRef.current) return;
-      if (!audioQueue || audioQueue.length === 0) return;
+      if (!audioRef.current || !audioQueue || audioQueue.length === 0) return;
+
       const safeIdx = Math.min(Math.max(0, idx), audioQueue.length - 1);
       const track = audioQueue[safeIdx];
       if (!track) return;
 
       const el = audioRef.current;
 
-      // If the requested track is already the current src and not paused -> just update state
-      if (currentSrcRef.current === track.url && !el.paused) {
-        setCurrentAudioIndex(safeIdx);
-        setPlayingIndex(safeIdx);
+      // If user explicitly requested play, clear user pause
+      if (byUser) {
+        userPausedRef.current = false;
+        setUserPaused(false);
+      }
+
+      // If already playing this track, don't restart
+      if (
+        currentSrcRef.current === track.url &&
+        !el.paused &&
+        playingIndex === safeIdx
+      ) {
         return;
       }
 
-      // If a play is already in flight for the same URL, don't issue another
-      if (playInFlightRef.current && currentSrcRef.current === track.url) {
-        return;
-      }
-
-      // create a new request id and mark play in-flight
+      // Cancel any pending play requests
       playRequestIdRef.current += 1;
       const myRequest = playRequestIdRef.current;
       playInFlightRef.current = true;
 
-      // Pause before changing src to avoid "interrupted by new load" race
+      setAudioLoading(true);
+      setAudioError(null);
+
+      // More aggressive pause - wait a bit for pause to take effect
       try {
         el.pause();
+        el.currentTime = 0; // Reset position
       } catch (e) {}
 
+      // Small delay to ensure pause takes effect
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Set new source
       currentSrcRef.current = track.url;
       el.src = track.url;
       el.loop = false;
+
+      // Apply current settings
       try {
         el.volume = audioVolume;
-      } catch (e) {}
-      try {
         el.muted = !soundEnabled;
       } catch (e) {}
 
-      // attempt to play. if this request gets superseded, we ignore result
+      // Attempt to play
       await el
         .play()
         .then(() => {
-          // only accept if this request is still the latest
+          // Only update state if this request is still current
           if (playRequestIdRef.current === myRequest) {
             setCurrentAudioIndex(safeIdx);
             setPlayingIndex(safeIdx);
+            setAudioLoading(false);
           }
         })
         .catch((err: any) => {
-          // ignore AbortError caused by an immediate pause; we don't want noisy console spam
+          // Handle different error types
           const isAbort =
-            err &&
-            (err.name === "AbortError" ||
-              /interrupted by/i.test(String(err?.message || "")));
-          if (!isAbort && process.env.NODE_ENV !== "production") {
-            console.debug("playTrack play failed", err);
+            err?.name === "AbortError" ||
+            /interrupted by/i.test(String(err?.message || ""));
+          const isNotAllowed = err?.name === "NotAllowedError";
+
+          if (!isAbort) {
+            if (isNotAllowed) {
+              setAudioError(
+                "Playback blocked by browser. Click to enable audio."
+              );
+            } else {
+              setAudioError("Failed to play audio track");
+              console.warn("Audio play failed:", err);
+            }
           }
-          // if this request is still the latest, clear playingIndex to reflect we are not playing
+
+          // Clean up state
           if (playRequestIdRef.current === myRequest) {
             setPlayingIndex(null);
+            setAudioLoading(false);
           }
         })
         .finally(() => {
-          // no matter what, this particular attempt is done
           if (playRequestIdRef.current === myRequest) {
-            playInFlightRef.current = false;
-          } else {
-            // a newer request exists; just mark this attempt as done
             playInFlightRef.current = false;
           }
         });
     } catch (e) {
-      if (process.env.NODE_ENV !== "production")
-        console.debug("playTrack error", e);
+      console.error("playTrackByIndex error:", e);
+      setAudioError("Unexpected audio error");
+      setAudioLoading(false);
+      setPlayingIndex(null);
       playInFlightRef.current = false;
     }
   };
+
+  // Legacy playTrack function for backward compatibility
+  const playTrack = playTrackByIndex;
 
   // helper to pause current playback and cancel pending play attempts
   // if `byUser` is true, set userPaused so auto-play is suppressed until the user explicitly plays again
@@ -425,61 +531,50 @@ export function StudySessionTimer({
       playInFlightRef.current = false;
       if (audioRef.current) audioRef.current.pause();
       setPlayingIndex(null);
-      if (byUser) setUserPaused(true);
+      setAudioLoading(false);
+      if (byUser) {
+        userPausedRef.current = true;
+        setUserPaused(true);
+      }
     } catch (e) {}
   };
 
-  // manager effect: decide whether we should auto-play based on session state and queue
+  // manager effect: only handle pausing when conditions change
   useEffect(() => {
     try {
-      // If user explicitly paused playback, do not auto-play anything until they unpause
-      if (userPaused) {
-        pauseAudio(false); // cancel pending plays but don't change userPaused flag here
+      // If a play operation is in flight, don't interfere
+      if (playInFlightRef.current) {
+        return;
+      }
+
+      // If user explicitly paused playback, ensure paused
+      if (userPausedRef.current) {
+        pauseAudio(false);
         return;
       }
 
       const hasQueue = !!(audioQueue && audioQueue.length > 0);
 
-      // If conditions are not right -> ensure paused
-      if (!isActive || isPaused || !hasQueue || !soundEnabled) {
+      // If audioPlaying is false or conditions not right, ensure paused
+      if (!audioPlaying || !hasQueue || !soundEnabled || audioError) {
         pauseAudio(false);
-        return;
       }
-
-      // If audio element already playing (not paused) and playingIndex aligns, don't restart
-      if (
-        audioRef.current &&
-        !audioRef.current.paused &&
-        playingIndex !== null
-      ) {
-        return;
-      }
-
-      // Otherwise request playing currentAudioIndex
-      const idx =
-        currentAudioIndex >= (audioQueue?.length || 1) ? 0 : currentAudioIndex;
-      playTrack(idx);
-    } catch (e) {}
+      // Note: Auto-playing is now handled directly by the play button
+    } catch (e) {
+      console.error("Audio manager effect error:", e);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isActive,
-    isPaused,
-    audioQueue,
-    currentAudioIndex,
-    soundEnabled,
-    userPaused,
-    playingIndex,
-  ]);
+  }, [audioPlaying, audioQueue, soundEnabled, userPaused, audioError]);
 
   // Keep volume/mute in sync (applies to the single audioRef instance)
   useEffect(() => {
     try {
       if (audioRef.current) {
-        audioRef.current.volume = audioVolume;
+        audioRef.current.volume = isMuted ? 0 : audioVolume;
         audioRef.current.muted = !soundEnabled;
       }
     } catch (e) {}
-  }, [audioVolume, soundEnabled]);
+  }, [audioVolume, soundEnabled, isMuted]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -515,25 +610,49 @@ export function StudySessionTimer({
     try {
       if (isStarting) return;
       setIsStarting(true);
-      const created = await createStudySession({
-        userId: user.clerkId,
-        courseId: courseId && courseId !== "none" ? courseId : undefined,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        startTime: Date.now(),
-        plannedDuration: plannedMinutes,
-        sessionType,
-        studyMethod: studyMethod || undefined,
-        location: location.trim() || undefined,
-        environment,
-        notes: notes.trim() || undefined,
-        audioQueue: sanitizeAudioQueue(audioQueue),
-      });
 
       let sessionId: any = null;
-      if (created) {
-        sessionId = extractId(created) || (created as any);
+
+      // If editing an existing session, update it instead of creating new
+      if (editSessionId) {
+        await updateStudySession({
+          sessionId: editSessionId as Id<"studySessions">,
+          courseId: courseId && courseId !== "none" ? courseId : undefined,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          startTime: Date.now(),
+          plannedDuration: plannedMinutes,
+          sessionType,
+          studyMethod: studyMethod || undefined,
+          location: location.trim() || undefined,
+          environment,
+          notes: notes.trim() || undefined,
+          audioQueue: sanitizeAudioQueue(audioQueue),
+          isCompleted: false, // Ensure it's not marked as completed when starting
+        });
+        sessionId = editSessionId;
+      } else {
+        // Create new session
+        const created = await createStudySession({
+          userId: user.clerkId,
+          courseId: courseId && courseId !== "none" ? courseId : undefined,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          startTime: Date.now(),
+          plannedDuration: plannedMinutes,
+          sessionType,
+          studyMethod: studyMethod || undefined,
+          location: location.trim() || undefined,
+          environment,
+          notes: notes.trim() || undefined,
+          audioQueue: sanitizeAudioQueue(audioQueue),
+        });
+
+        if (created) {
+          sessionId = extractId(created) || (created as any);
+        }
       }
+
       setCurrentSessionId(sessionId as any);
       setIsActive(true);
       setIsPaused(false);
@@ -556,7 +675,6 @@ export function StudySessionTimer({
 
       // create an in-app notification for the started session (non-fatal)
       try {
-        const sessionId = extractId(created);
         await createNotification({
           userId: user.clerkId,
           title: `Study session: ${title.trim()}`,
@@ -582,13 +700,7 @@ export function StudySessionTimer({
     // session-level pause/resume
     const next = !isPaused;
     setIsPaused(next);
-    if (next) {
-      // pausing session: stop audio (but don't mark userPaused)
-      pauseAudio(false);
-    } else {
-      // resuming session: manager effect will handle restart (unless userPaused)
-      setIsPaused(false);
-    }
+    // Note: Audio playback is now controlled separately and not affected by timer pause/resume
   };
 
   const handleStop = async () => {
@@ -720,9 +832,10 @@ export function StudySessionTimer({
   };
 
   const moveAudio = (index: number, dir: -1 | 1) => {
+    const to = index + dir;
+
     setAudioQueue((prev) => {
       const arr = [...prev];
-      const to = index + dir;
       if (to < 0 || to >= arr.length) return arr;
       const tmp = arr[to];
       arr[to] = arr[index];
@@ -743,8 +856,18 @@ export function StudySessionTimer({
       return next;
     });
 
-    // Reset to a safe index to avoid stale index mapping
-    setCurrentAudioIndex(0);
+    // Adjust indices properly after move operation
+    setCurrentAudioIndex((prev) => {
+      if (prev === index) return to;
+      if (prev === to) return index;
+      return prev;
+    });
+
+    setPlayingIndex((prev) => {
+      if (prev === index) return to;
+      if (prev === to) return index;
+      return prev;
+    });
   };
 
   const removeAudio = (index: number) => {
@@ -776,19 +899,33 @@ export function StudySessionTimer({
       return next;
     });
 
-    // If user removed currently playing track, stop playback
+    // Adjust indices properly after removal
     setPlayingIndex((prev) => {
+      if (prev === null) return null;
       if (prev === index) {
+        // Currently playing track was removed, stop playback
         pauseAudio(true);
         return null;
+      }
+      if (prev > index) {
+        // Track was removed before current playing track, shift index down
+        return prev - 1;
       }
       return prev;
     });
 
-    // normalize index
-    setCurrentAudioIndex((prev) =>
-      Math.max(0, Math.min(prev, Math.max(0, audioQueue.length - 2)))
-    );
+    // Adjust currentAudioIndex properly
+    setCurrentAudioIndex((prev) => {
+      if (prev === index) {
+        // If current index was removed, move to next valid index or 0
+        return Math.max(0, Math.min(prev, audioQueue.length - 2));
+      }
+      if (prev > index) {
+        // Track was removed before current index, shift down
+        return prev - 1;
+      }
+      return prev;
+    });
   };
 
   // Manual per-item control used in UI
@@ -799,7 +936,7 @@ export function StudySessionTimer({
     } else {
       // user-initiated play -> clear userPaused and start track
       setUserPaused(false);
-      playTrack(idx);
+      playTrackByIndex(idx, true);
     }
   };
 
@@ -821,7 +958,7 @@ export function StudySessionTimer({
         location: location || undefined,
         environment: environment || undefined,
         notes: notes || undefined,
-        isCompleted: isCompleted || undefined,
+        isCompleted: isCompleted,
         wasInterrupted: wasInterrupted || undefined,
       });
       sonnerToast.success("Session updated — changes saved.");
@@ -856,7 +993,7 @@ export function StudySessionTimer({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Timer className="w-5 h-5" />
@@ -885,7 +1022,7 @@ export function StudySessionTimer({
             )}
 
             {/* Timer Controls */}
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               {!isActive ? (
                 <Button
                   onClick={handleStart}
@@ -912,6 +1049,42 @@ export function StudySessionTimer({
                     {isPaused ? "Resume" : "Pause"}
                   </Button>
                   <Button
+                    onClick={async () => {
+                      if (!currentSessionId) return;
+                      try {
+                        await updateStudySession({
+                          sessionId: currentSessionId,
+                          isCompleted: true,
+                          endTime: Date.now(),
+                          duration: Math.floor(time / 60), // minutes
+                          focusScore,
+                          productivityRating,
+                          distractionCount,
+                          breakCount,
+                          notes: notes.trim() || undefined,
+                          audioQueue: sanitizeAudioQueue(audioQueue),
+                          wasInterrupted,
+                        });
+                        setIsCompleted(true);
+                        setIsActive(false);
+                        setIsPaused(false);
+                        pauseAudio(true);
+                        sonnerToast.success("Session marked as completed!");
+                        setOpen(false);
+                        onSuccess?.();
+                      } catch (err) {
+                        console.error("Failed to mark session complete:", err);
+                        sonnerToast.error("Failed to mark session complete");
+                      }
+                    }}
+                    variant="default"
+                    size="lg"
+                    className="gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Target className="w-4 h-4" />
+                    Mark Complete
+                  </Button>
+                  <Button
                     onClick={handleStop}
                     variant="destructive"
                     size="lg"
@@ -926,16 +1099,47 @@ export function StudySessionTimer({
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={() => {
-                  // toggling sound does not clear userPaused — it's a separate user intent
-                  setSoundEnabled((s) => !s);
+                onClick={async () => {
+                  if (audioPlaying) {
+                    setAudioPlaying(false);
+                    pauseAudio(true); // User explicitly paused
+                  } else {
+                    setAudioPlaying(true);
+                    setUserPaused(false);
+                    userPausedRef.current = false;
+                    // Directly start playing if we have a queue
+                    if (audioQueue && audioQueue.length > 0) {
+                      await playTrackByIndex(currentAudioIndex, true);
+                    }
+                  }
                 }}
-                title={soundEnabled ? "Mute audio" : "Unmute audio"}
+                disabled={!audioQueue || audioQueue.length === 0}
+                title={audioPlaying ? "Pause audio" : "Play audio"}
               >
-                {soundEnabled ? (
-                  <Volume2 className="w-4 h-4" />
+                {audioPlaying ? (
+                  <Pause className="w-4 h-4" />
                 ) : (
+                  <Play className="w-4 h-4" />
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => {
+                  if (isMuted) {
+                    setIsMuted(false);
+                  } else {
+                    setPreviousVolume(audioVolume);
+                    setIsMuted(true);
+                  }
+                }}
+                title={isMuted ? "Unmute audio" : "Mute audio"}
+              >
+                {isMuted ? (
                   <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
                 )}
               </Button>
             </div>
@@ -1204,9 +1408,10 @@ export function StudySessionTimer({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-xs"
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           moveAudio(idx, -1);
@@ -1214,10 +1419,11 @@ export function StudySessionTimer({
                         disabled={idx === 0}
                       >
                         ↑
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="btn btn-xs"
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           moveAudio(idx, 1);
@@ -1225,27 +1431,30 @@ export function StudySessionTimer({
                         disabled={idx === audioQueue.length - 1}
                       >
                         ↓
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="btn btn-xs"
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleTrackPlay(idx);
                         }}
                       >
                         {playingIndex === idx ? "Pause" : "Play"}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="btn btn-xs text-red-600"
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeAudio(idx);
                         }}
+                        className="text-red-600 hover:text-red-700"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}

@@ -18,7 +18,7 @@ export const getCollegeScheduleByDay = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("collegeSchedule")
-      .withIndex("by_user_and_day", (q) => 
+      .withIndex("by_user_and_day", (q) =>
         q.eq("userId", args.userId).eq("dayOfWeek", args.dayOfWeek)
       )
       .collect();
@@ -41,7 +41,7 @@ export const getDiningScheduleByDay = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("diningSchedule")
-      .withIndex("by_user_and_day", (q) => 
+      .withIndex("by_user_and_day", (q) =>
         q.eq("userId", args.userId).eq("dayOfWeek", args.dayOfWeek)
       )
       .collect();
@@ -172,23 +172,25 @@ export const deleteDiningScheduleItem = mutation({
 export const batchCreateCollegeSchedule = mutation({
   args: {
     userId: v.string(),
-    scheduleItems: v.array(v.object({
-      subject: v.string(),
-      code: v.optional(v.string()),
-      instructor: v.optional(v.string()),
-      location: v.optional(v.string()),
-      dayOfWeek: v.string(),
-      startTime: v.string(),
-      endTime: v.string(),
-      duration: v.optional(v.number()),
-      semester: v.optional(v.string()),
-      credits: v.optional(v.number()),
-      color: v.optional(v.string()),
-    }))
+    scheduleItems: v.array(
+      v.object({
+        subject: v.string(),
+        code: v.optional(v.string()),
+        instructor: v.optional(v.string()),
+        location: v.optional(v.string()),
+        dayOfWeek: v.string(),
+        startTime: v.string(),
+        endTime: v.string(),
+        duration: v.optional(v.number()),
+        semester: v.optional(v.string()),
+        credits: v.optional(v.number()),
+        color: v.optional(v.string()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const insertPromises = args.scheduleItems.map(item => 
+    const insertPromises = args.scheduleItems.map((item) =>
       ctx.db.insert("collegeSchedule", {
         userId: args.userId,
         ...item,
@@ -203,20 +205,22 @@ export const batchCreateCollegeSchedule = mutation({
 export const batchCreateDiningSchedule = mutation({
   args: {
     userId: v.string(),
-    scheduleItems: v.array(v.object({
-      mealType: v.string(),
-      location: v.optional(v.string()),
-      dayOfWeek: v.string(),
-      startTime: v.string(),
-      endTime: v.string(),
-      specialNotes: v.optional(v.string()),
-      isEnabled: v.optional(v.boolean()),
-      reminderMinutes: v.optional(v.number()),
-    }))
+    scheduleItems: v.array(
+      v.object({
+        mealType: v.string(),
+        location: v.optional(v.string()),
+        dayOfWeek: v.string(),
+        startTime: v.string(),
+        endTime: v.string(),
+        specialNotes: v.optional(v.string()),
+        isEnabled: v.optional(v.boolean()),
+        reminderMinutes: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const insertPromises = args.scheduleItems.map(item => 
+    const insertPromises = args.scheduleItems.map((item) =>
       ctx.db.insert("diningSchedule", {
         userId: args.userId,
         ...item,
@@ -253,7 +257,7 @@ export const createOrUpdateSchedulePreferences = mutation({
       .first();
 
     const now = Date.now();
-    
+
     if (existing) {
       return await ctx.db.patch(existing._id, {
         ...preferences,
@@ -272,15 +276,20 @@ export const createOrUpdateSchedulePreferences = mutation({
 
 // Combined schedule view for calendar integration
 export const getCombinedSchedule = query({
-  args: { 
+  args: {
     userId: v.string(),
     includeClasses: v.optional(v.boolean()),
     includeDining: v.optional(v.boolean()),
     dayOfWeek: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, includeClasses = true, includeDining = true, dayOfWeek } = args;
-    
+    const {
+      userId,
+      includeClasses = true,
+      includeDining = true,
+      dayOfWeek,
+    } = args;
+
     let collegeSchedule: any[] = [];
     let diningSchedule: any[] = [];
 
@@ -288,7 +297,7 @@ export const getCombinedSchedule = query({
       if (dayOfWeek) {
         collegeSchedule = await ctx.db
           .query("collegeSchedule")
-          .withIndex("by_user_and_day", (q) => 
+          .withIndex("by_user_and_day", (q) =>
             q.eq("userId", userId).eq("dayOfWeek", dayOfWeek)
           )
           .collect();
@@ -304,7 +313,7 @@ export const getCombinedSchedule = query({
       if (dayOfWeek) {
         diningSchedule = await ctx.db
           .query("diningSchedule")
-          .withIndex("by_user_and_day", (q) => 
+          .withIndex("by_user_and_day", (q) =>
             q.eq("userId", userId).eq("dayOfWeek", dayOfWeek)
           )
           .filter((q) => q.eq(q.field("isEnabled"), true))
@@ -322,5 +331,92 @@ export const getCombinedSchedule = query({
       classes: collegeSchedule,
       dining: diningSchedule,
     };
+  },
+});
+
+// Optimized Schedules
+export const saveOptimizedSchedule = mutation({
+  args: {
+    userId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    originalSchedule: v.any(),
+    assignments: v.any(),
+    events: v.any(),
+    studySessions: v.any(),
+    optimizedSchedule: v.any(),
+    optimizationNotes: v.optional(v.string()),
+    aiModel: v.optional(v.string()),
+    optimizationScore: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // First, mark any existing active schedule as inactive
+    const existingActive = await ctx.db
+      .query("optimizedSchedules")
+      .withIndex("by_user_and_active", (q) =>
+        q.eq("userId", args.userId).eq("isActive", true)
+      )
+      .first();
+
+    if (existingActive) {
+      await ctx.db.patch(existingActive._id, {
+        isActive: false,
+        updatedAt: now,
+      });
+    }
+
+    // Save the new optimized schedule
+    return await ctx.db.insert("optimizedSchedules", {
+      ...args,
+      optimizationDate: now,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const getOptimizedSchedules = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("optimizedSchedules")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const getActiveOptimizedSchedule = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("optimizedSchedules")
+      .withIndex("by_user_and_active", (q) =>
+        q.eq("userId", args.userId).eq("isActive", true)
+      )
+      .first();
+  },
+});
+
+export const applyOptimizedSchedule = mutation({
+  args: { scheduleId: v.id("optimizedSchedules") },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.scheduleId, {
+      appliedDate: now,
+      updatedAt: now,
+    });
+    return true;
+  },
+});
+
+export const deleteOptimizedSchedule = mutation({
+  args: { scheduleId: v.id("optimizedSchedules") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.scheduleId);
+    return true;
   },
 });

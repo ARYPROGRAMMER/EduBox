@@ -4,6 +4,7 @@ import { SchematicProvider } from "@schematichq/schematic-react";
 import { ClerkProvider } from "@clerk/nextjs";
 import SchematicWrapped from "./SchematicWrapped";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { CopilotKit } from "@copilotkit/react-core";
 
 export default function ClientWrapper({
   children,
@@ -20,7 +21,9 @@ export default function ClientWrapper({
     <ConvexClientProvider>
       <ClerkProvider>
         <SchematicProvider publishableKey={schematicPubKey}>
-          <SchematicWrapped>{children}</SchematicWrapped>
+          <CopilotKit runtimeUrl="/api/copilotkit">
+            <SchematicWrapped>{children}</SchematicWrapped>
+          </CopilotKit>
         </SchematicProvider>
       </ClerkProvider>
     </ConvexClientProvider>

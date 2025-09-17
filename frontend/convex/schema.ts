@@ -782,4 +782,37 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user_id", ["userId"]),
+
+  // Optimized Schedules - AI-generated schedule optimizations
+  optimizedSchedules: defineTable({
+    userId: v.string(),
+    name: v.string(), // User-defined name for the optimization
+    description: v.optional(v.string()),
+
+    // Original schedule data at time of optimization
+    originalSchedule: v.any(), // Full schedule snapshot
+    assignments: v.any(), // Assignments snapshot
+    events: v.any(), // Events snapshot
+    studySessions: v.any(), // Study sessions snapshot
+
+    // Optimized schedule data
+    optimizedSchedule: v.any(), // The optimized schedule result
+    optimizationNotes: v.optional(v.string()), // AI-generated notes
+
+    // Optimization metadata
+    optimizationDate: v.number(),
+    aiModel: v.optional(v.string()), // Which AI model was used
+    optimizationScore: v.optional(v.number()), // 0-100 quality score
+
+    // Status
+    isActive: v.optional(v.boolean()), // Whether this is the currently active optimized schedule
+    appliedDate: v.optional(v.number()), // When user applied this optimization
+
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_user_and_active", ["userId", "isActive"])
+    .index("by_optimization_date", ["optimizationDate"]),
 });

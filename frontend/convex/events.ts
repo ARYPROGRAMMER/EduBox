@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Create a new event
 export const createEvent = mutation({
@@ -49,6 +50,19 @@ export const createEvent = mutation({
       meetingPassword: args.meetingPassword,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // #codebase: Create notification for event creation
+    await ctx.runMutation(api.notifications.createNotification, {
+      userId: args.userId,
+      title: "Event Created",
+      message: `"${args.title}" has been added to your schedule.`,
+      type: "event_created",
+      priority: "low",
+      relatedId: eventId,
+      relatedType: "event",
+      actionUrl: "/dashboard/planner",
+      actionLabel: "View Schedule",
     });
 
     return eventId;

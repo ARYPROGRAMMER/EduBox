@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Add a message to a chat session
 export const addMessage = mutation({
@@ -42,6 +43,21 @@ export const addMessage = mutation({
       await ctx.db.patch(session._id, {
         lastMessageAt: now,
         updatedAt: now,
+      });
+    }
+
+    // #codebase: Create notification for AI assistant responses
+    if (args.role === "assistant") {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: args.userId,
+        title: "AI Assistant Response",
+        message: `Your AI assistant has responded to your message in the chat session.`,
+        type: "ai_assistant_response",
+        priority: "low",
+        relatedId: args.sessionId,
+        relatedType: "chat_session",
+        actionUrl: "/dashboard/chat",
+        actionLabel: "View Chat",
       });
     }
 

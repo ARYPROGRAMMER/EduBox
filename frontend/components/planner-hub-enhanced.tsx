@@ -24,8 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ButtonLoader, CardSkeleton } from "@/components/ui/loader";
-import { useAsyncOperation } from "@/components/ui/loading-context";
 import {
   Select,
   SelectContent,
@@ -33,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -50,16 +49,17 @@ import {
   FileText,
   GraduationCap,
   Users,
-  CheckCircle,
-  AlertCircle,
   Target,
   UtensilsCrossed,
   Timer,
+  Edit,
+  Trash2,
+  CheckCircle,
 } from "lucide-react";
 import { CourseCreationDialog } from "@/components/dialogs/course-creation-dialog";
 import { AssignmentCreationDialog } from "@/components/dialogs/assignment-creation-dialog";
 import { StudySessionTimer } from "@/components/dialogs/study-session-timer";
-import { suggestSchedule, SuggestedBlock } from "@/lib/scheduler";
+import { ScheduleEnhancerModal } from "@/components/schedule-enhancer-modal";
 import { toast as sonnerToast } from "sonner";
 
 interface Event {
@@ -72,6 +72,25 @@ interface Event {
   location: string;
   priority: "high" | "medium" | "low";
   color: string;
+}
+
+// Type definitions for optimized schedule
+interface OptimizedScheduleItem {
+  id: string;
+  title: string;
+  type: string;
+  priority: string;
+  duration: number;
+  startTime: number | string;
+  description?: string;
+}
+
+interface OptimizedScheduleData {
+  scheduleItems?: OptimizedScheduleItem[];
+  optimized?: boolean;
+  optimizationDate?: string;
+  notes?: string;
+  [key: string]: any;
 }
 
 interface Task {
@@ -94,6 +113,9 @@ export function PlannerHubEnhanced() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showCourseDialog, setShowCourseDialog] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
   const [followedItems, setFollowedItems] = useState<string[]>([]);
   const [newEvent, setNewEvent] = useState({
     title: "",
@@ -157,6 +179,22 @@ export function PlannerHubEnhanced() {
     )
   );
 
+  // Fetch optimized schedules
+  const optimizedSchedules = useQuery(
+    api.schedules.getOptimizedSchedules,
+    useMemo(
+      () => (convexUser ? { userId: convexUser.clerkId } : "skip"),
+      [convexUser?.clerkId]
+    )
+  );
+  const activeOptimizedSchedule = useQuery(
+    api.schedules.getActiveOptimizedSchedule,
+    useMemo(
+      () => (convexUser ? { userId: convexUser.clerkId } : "skip"),
+      [convexUser?.clerkId]
+    )
+  );
+
   // Mutations
   const createEvent = useMutation(api.events.createEvent);
   const createAssignment = useMutation(api.assignments.createAssignment);
@@ -167,6 +205,20 @@ export function PlannerHubEnhanced() {
   const createStudySessionMutation = useMutation(
     api.analytics.createStudySession
   );
+  const updateStudySession = useMutation(api.analytics.updateStudySession);
+  const createCourse = useMutation(api.courses.createCourse);
+  const updateCourse = useMutation(api.courses.updateCourse);
+  const deleteCourse = useMutation(api.courses.deleteCourse);
+  const applyOptimizedSchedule = useMutation(
+    api.schedules.applyOptimizedSchedule
+  );
+  const deleteOptimizedSchedule = useMutation(
+    api.schedules.deleteOptimizedSchedule
+  );
+  const dismissNotificationsByRelatedId = useMutation(
+    api.notifications.dismissNotificationsByRelatedId
+  );
+  const createNotification = useMutation(api.notifications.createNotification);
 
   // Use simple loading state instead of useAsyncOperation
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -358,9 +410,9 @@ export function PlannerHubEnhanced() {
       convexUser
         ? {
             userId: convexUser.clerkId,
-            startDate: Date.now() - 30 * 24 * 60 * 60 * 1000,
-            endDate: Date.now(),
-            limit: 50,
+            startDate: Date.now() - 365 * 24 * 60 * 60 * 1000, // 1 year ago for history
+            endDate: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days in future for upcoming
+            limit: 200, // Increase limit for more history
           }
         : "skip",
     [convexUser?.clerkId]
@@ -442,6 +494,22 @@ export function PlannerHubEnhanced() {
       return false;
     }
   });
+
+  // Process courses
+  const upcomingCourses = (courses || []).filter(
+    (course: any) => course.status === "active" || !course.status
+  );
+  const completedCourses = (courses || []).filter(
+    (course: any) => course.status === "completed"
+  );
+
+  // Process study sessions
+  const upcomingSessions = (studySessions || []).filter(
+    (session: any) => !session.isCompleted && session.startTime
+  );
+  const completedSessions = (studySessions || []).filter(
+    (session: any) => session.isCompleted
+  );
 
   // Calculate exams this week
   const getExamsThisWeek = () => {
@@ -615,6 +683,38 @@ export function PlannerHubEnhanced() {
           submittedDate: newStatus === "completed" ? Date.now() : undefined,
         },
       });
+
+      // #codebase: Add notifications for assignment completion
+      if (newStatus === "completed") {
+        try {
+          // Dismiss any previous assignment notifications
+          await dismissNotificationsByRelatedId({
+            userId: convexUser.clerkId,
+            relatedId: assignment._id,
+            relatedType: "assignment",
+            excludeType: "assignment_completed",
+          });
+
+          // Create completion notification
+          await createNotification({
+            userId: convexUser.clerkId,
+            title: "Assignment completed! ✅",
+            message: `Great work! You've completed "${assignment.title}".`,
+            type: "assignment_completed",
+            relatedId: assignment._id,
+            relatedType: "assignment",
+            priority: "low",
+            actionUrl: `/dashboard/planner`,
+            actionLabel: "View Planner",
+          });
+        } catch (notificationError) {
+          console.warn(
+            "Failed to create assignment completion notification:",
+            notificationError
+          );
+        }
+      }
+
       sonnerToast.success("Assignment updated");
       setSelectedAssignment(null);
       try {
@@ -644,100 +744,86 @@ export function PlannerHubEnhanced() {
     }
   };
 
-  // Scheduler preview state
-  const [suggestedBlocks, setSuggestedBlocks] = useState<
-    SuggestedBlock[] | null
-  >(null);
-  const [showSuggestPreview, setShowSuggestPreview] = useState(false);
-  const [acceptedMap, setAcceptedMap] = useState<Record<string, boolean>>({});
-
-  // Preferences (persist in localStorage)
-  const [prefHorizon, setPrefHorizon] = useState<number>(() => {
+  // Course handlers
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!convexUser) return;
     try {
-      return Number(localStorage.getItem("scheduler.horizonDays") || "7");
-    } catch {
-      return 7;
-    }
-  });
-  const [prefBlockMinutes, setPrefBlockMinutes] = useState<number>(() => {
-    try {
-      return Number(localStorage.getItem("scheduler.blockMinutes") || "60");
-    } catch {
-      return 60;
-    }
-  });
-  const [prefDailyMax, setPrefDailyMax] = useState<number>(() => {
-    try {
-      return Number(
-        localStorage.getItem("scheduler.maxMinutesPerDay") || "180"
-      );
-    } catch {
-      return 180;
-    }
-  });
-
-  const handleSuggestSchedule = () => {
-    try {
-      // Build assignments payload for scheduler (pending only)
-      const pending = pendingAssignments.map((a: any) => ({
-        _id: a._id,
-        title: a.title,
-        dueDate: a.dueDate,
-        priority: a.priority,
-        estimatedMinutes: a.estimatedMinutes,
-      }));
-      // Build existing events from calendarEvents
-      const evs = (calendarEvents || []).map((e: any) => ({
-        startTime: e.startTime,
-        endTime: e.endTime,
-      }));
-      const suggested = suggestSchedule(pending, evs, {
-        horizonDays: prefHorizon,
-        blockMinutes: prefBlockMinutes,
-        maxMinutesPerDay: prefDailyMax,
+      await deleteCourse({
+        courseId: courseId as Id<"courses">,
+        userId: convexUser.clerkId,
       });
-      setSuggestedBlocks(suggested);
-      // default all accepted
-      const nextMap: Record<string, boolean> = {};
-      (suggested || []).forEach((s) => (nextMap[s.id] = true));
-      setAcceptedMap(nextMap);
-      setShowSuggestPreview(true);
-    } catch (e) {
-      console.error("suggest schedule failed", e);
-      setSuggestedBlocks(null);
-      setShowSuggestPreview(false);
-    }
-  };
-
-  const commitSuggested = async (blocks: SuggestedBlock[]) => {
-    if (!convexUser || !Array.isArray(blocks) || blocks.length === 0) return;
-    try {
-      for (const b of blocks) {
-        if (!acceptedMap[b.id]) continue; // skip rejected
-        await createStudySessionMutation({
-          userId: (convexUser as any).clerkId,
-          title: b.title ? `${b.title} — Study` : "Study Session",
-          startTime: b.startTime,
-          plannedDuration: Math.round(b.minutes),
-          sessionType: "study",
-          assignmentId: b.assignmentId || undefined,
-          notes: b.assignmentId
-            ? JSON.stringify({ linkedAssignmentId: b.assignmentId })
-            : undefined,
-        });
-      }
-      sonnerToast.success("Suggested study sessions created");
-      setShowSuggestPreview(false);
-      setSuggestedBlocks(null);
-      setAcceptedMap({});
+      sonnerToast.success("Course deleted");
       try {
         router.refresh();
       } catch (e) {}
     } catch (e) {
-      console.error("commit suggested failed", e);
-      sonnerToast.error("Failed to create some sessions");
+      sonnerToast.error("Failed to delete course");
     }
   };
+
+  // Study session handlers
+  const handleCompleteSession = async (sessionId: string) => {
+    if (!convexUser) return;
+    try {
+      await updateStudySession({
+        sessionId: sessionId as Id<"studySessions">,
+        isCompleted: true,
+        endTime: Date.now(),
+      });
+
+      // #codebase: Dismiss previous study session started notifications and create completion notification
+      try {
+        // Dismiss any previous "started" notifications for this session
+        await dismissNotificationsByRelatedId({
+          userId: convexUser.clerkId,
+          relatedId: sessionId,
+          relatedType: "study_session",
+          excludeType: "study_session_completed", // Don't dismiss completion notifications
+        });
+
+        // Create completion notification
+        await createNotification({
+          userId: convexUser.clerkId,
+          title: "Study session completed! 🎉",
+          message: `Great job! You've successfully completed your study session.`,
+          type: "study_session_completed",
+          relatedId: sessionId,
+          relatedType: "study_session",
+          priority: "low",
+          actionUrl: `/dashboard/planner`,
+          actionLabel: "View Planner",
+        });
+      } catch (notificationError) {
+        console.warn("Failed to update notifications:", notificationError);
+      }
+
+      sonnerToast.success("Study session completed");
+      // Wait a bit for the mutation to propagate, then refresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (e) {
+      sonnerToast.error("Failed to complete session");
+      console.error("Error completing session:", e);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!convexUser) return;
+    try {
+      await deleteStudySession({
+        sessionId: sessionId as Id<"studySessions">,
+      });
+      sonnerToast.success("Study session deleted");
+      try {
+        router.refresh();
+      } catch (e) {}
+    } catch (e) {
+      sonnerToast.error("Failed to delete session");
+    }
+  };
+
+  const [showEnhancerModal, setShowEnhancerModal] = useState(false);
 
   // Diagnostic: count renders to help find infinite render loops
   const _renderCountRef = useRef(0);
@@ -1028,7 +1114,7 @@ export function PlannerHubEnhanced() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <CourseCreationDialog>
             <Card className="cursor-pointer hover:shadow-md transition-shadow border-dashed">
               <CardContent className="p-4">
@@ -1087,19 +1173,19 @@ export function PlannerHubEnhanced() {
           </StudySessionTimer>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Calendar */}
-          <div className="lg:col-span-2">
+          <div className="xl:col-span-2 space-y-6">
             <Card data-session-id={fetchedSession?._id}>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <CardTitle className="text-xl">Academic Calendar</CardTitle>
                     <CardDescription>
                       Manage your schedule and important dates
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant={viewMode === "month" ? "default" : "outline"}
                       size="sm"
@@ -1462,7 +1548,7 @@ export function PlannerHubEnhanced() {
           </div>
 
           {/* Tasks & Upcoming Events */}
-          <div className="space-y-6">
+          <div className="space-y-6 xl:sticky xl:top-20 xl:self-start">
             {/* Upcoming Events */}
             <Card>
               <CardHeader>
@@ -1552,288 +1638,865 @@ export function PlannerHubEnhanced() {
             {/* Task Management */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                   <div>
                     <CardTitle className="text-lg">Task Management</CardTitle>
                     <CardDescription>
                       Track your assignments and todos
                     </CardDescription>
                   </div>
-                  <Dialog open={showTaskModal} onOpenChange={setShowTaskModal}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Task
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Task</DialogTitle>
-                        <DialogDescription>
-                          Create a new task to track your progress
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Input
-                          placeholder="Task title"
-                          value={taskTitle}
-                          onChange={(e) => setTaskTitle(e.target.value)}
-                        />
-                        <Select
-                          value={taskPriority}
-                          onValueChange={(v: any) => setTaskPriority(v)}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Dialog
+                      open={showTaskModal}
+                      onOpenChange={setShowTaskModal}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full sm:w-auto min-h-[44px]"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Priority" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="high">High Priority</SelectItem>
-                            <SelectItem value="medium">
-                              Medium Priority
-                            </SelectItem>
-                            <SelectItem value="low">Low Priority</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          type="date"
-                          placeholder="Due date"
-                          value={taskDueDate}
-                          onChange={(e) => setTaskDueDate(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            className="flex-1"
-                            onClick={async () => {
-                              // Inline create a lightweight assignment when user saves a task
-                              if (!convexUser) {
-                                sonnerToast.error(
-                                  "You must be logged in to create a task."
-                                );
-                                return;
-                              }
-                              if (!taskTitle.trim() || !taskDueDate) {
-                                sonnerToast.error(
-                                  "Please provide a title and due date for the task."
-                                );
-                                return;
-                              }
-                              try {
-                                setIsTaskSubmitting(true);
-                                const due = new Date(
-                                  `${taskDueDate}T23:59`
-                                ).getTime();
-                                await createAssignment({
-                                  userId: convexUser.clerkId,
-                                  title: taskTitle.trim(),
-                                  dueDate: due,
-                                  priority: taskPriority,
-                                  assignedDate: Date.now(),
-                                });
-                                sonnerToast.success(
-                                  `Task "${taskTitle}" created.`
-                                );
-                                // Reset local form
-                                setTaskTitle("");
-                                setTaskPriority("medium");
-                                setTaskDueDate("");
-                                setShowTaskModal(false);
-                                // Best-effort refresh to ensure lists update
-                                try {
-                                  router.refresh();
-                                } catch (e) {
-                                  /* ignore */
-                                }
-                              } catch (e) {
-                                console.error("Failed to create task", e);
-                                sonnerToast.error("Failed to create task.");
-                              } finally {
-                                setIsTaskSubmitting(false);
-                              }
-                            }}
-                            disabled={isTaskSubmitting}
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Task
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Task</DialogTitle>
+                          <DialogDescription>
+                            Create a new task to track your progress
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <Input
+                            placeholder="Task title"
+                            value={taskTitle}
+                            onChange={(e) => setTaskTitle(e.target.value)}
+                          />
+                          <Select
+                            value={taskPriority}
+                            onValueChange={(v: any) => setTaskPriority(v)}
                           >
-                            {isTaskSubmitting ? "Saving..." : "Save Task"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowTaskModal(false)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSuggestSchedule}
-                    className="ml-2"
-                  >
-                    Suggest Schedule
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {/* ...existing Task Management content... */}
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Progress</span>
-                    <span>
-                      {completedAssignments.length}/{assignments.length}{" "}
-                      completed
-                    </span>
-                  </div>
-                  <Progress
-                    value={
-                      (completedAssignments.length / assignments.length) *
-                        100 || 0
-                    }
-                    className="h-2"
-                  />
-
-                  <div className="space-y-3 mt-4">
-                    {pendingAssignments.slice(0, 5).map((assignment: any) => (
-                      <div
-                        key={assignment._id}
-                        className={`flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${
-                          assignment.status === "completed"
-                            ? "opacity-60 line-through"
-                            : ""
-                        }`}
-                        onClick={() => setSelectedAssignment(assignment)}
-                      >
-                        {/* Mark complete button */}
-                        <button
-                          title="Open details"
-                          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted/50"
-                        >
-                          <svg
-                            className="w-4 h-4 text-muted-foreground"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth="2"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15 10l4.553-2.276A2 2 0 0122 9.618V16a2 2 0 01-2 2h-1.553A2 2 0 0116 20H8a2 2 0 01-1.447-.684L2 14v-4a2 2 0 011.447-1.816L8 6h8z"
-                            />
-                          </svg>
-                        </button>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {assignment.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Due: {formatDateString(assignment.dueDate)}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className={getPriorityColor(assignment.priority)}
-                          >
-                            {assignment.priority}
-                          </Badge>
-
-                          {/* Pin / Follow toggle for reminders */}
-                          <Button
-                            size="sm"
-                            variant={
-                              followedItems.includes(
-                                `assignment:${assignment._id}`
-                              )
-                                ? "default"
-                                : "outline"
-                            }
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFollow(`assignment:${assignment._id}`);
-                            }}
-                          >
-                            {followedItems.includes(
-                              `assignment:${assignment._id}`
-                            )
-                              ? "Pinned"
-                              : "Pin"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
+                            <SelectTrigger>
+                              <SelectValue placeholder="Priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">
+                                High Priority
+                              </SelectItem>
+                              <SelectItem value="medium">
+                                Medium Priority
+                              </SelectItem>
+                              <SelectItem value="low">Low Priority</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="date"
+                            placeholder="Due date"
+                            value={taskDueDate}
+                            onChange={(e) => setTaskDueDate(e.target.value)}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              className="flex-1"
+                              onClick={async () => {
+                                // Inline create a lightweight assignment when user saves a task
                                 if (!convexUser) {
                                   sonnerToast.error(
-                                    "You must be logged in to delete assignments."
+                                    "You must be logged in to create a task."
                                   );
                                   return;
                                 }
-                                await deleteAssignmentMutation({
-                                  assignmentId: assignment._id,
-                                  userId: convexUser.clerkId,
-                                });
-                                sonnerToast.success("Assignment deleted");
+                                if (!taskTitle.trim() || !taskDueDate) {
+                                  sonnerToast.error(
+                                    "Please provide a title and due date for the task."
+                                  );
+                                  return;
+                                }
                                 try {
-                                  router.refresh();
-                                } catch (e) {}
-                              } catch (err) {
-                                console.error("delete assignment failed", err);
-                                sonnerToast.error(
-                                  "Failed to delete assignment"
-                                );
-                              }
-                            }}
-                          >
-                            Delete
-                          </Button>
+                                  setIsTaskSubmitting(true);
+                                  const due = new Date(
+                                    `${taskDueDate}T23:59`
+                                  ).getTime();
+                                  await createAssignment({
+                                    userId: convexUser.clerkId,
+                                    title: taskTitle.trim(),
+                                    dueDate: due,
+                                    priority: taskPriority,
+                                    assignedDate: Date.now(),
+                                  });
+                                  sonnerToast.success(
+                                    `Task "${taskTitle}" created.`
+                                  );
+                                  // Reset local form
+                                  setTaskTitle("");
+                                  setTaskPriority("medium");
+                                  setTaskDueDate("");
+                                  setShowTaskModal(false);
+                                  // Best-effort refresh to ensure lists update
+                                  try {
+                                    router.refresh();
+                                  } catch (e) {
+                                    /* ignore */
+                                  }
+                                } catch (e) {
+                                  console.error("Failed to create task", e);
+                                  sonnerToast.error("Failed to create task.");
+                                } finally {
+                                  setIsTaskSubmitting(false);
+                                }
+                              }}
+                              disabled={isTaskSubmitting}
+                            >
+                              {isTaskSubmitting ? "Saving..." : "Save Task"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowTaskModal(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowEnhancerModal(true)}
+                      className="w-full sm:w-auto min-h-[44px]"
+                    >
+                      Enhance Schedule
+                    </Button>
                   </div>
-                  {/* Completed / History */}
-                  <div className="mt-4">
-                    <h5 className="text-sm font-semibold mb-2">
-                      Completed / History
-                    </h5>
-                    <div className="space-y-2">
-                      {(completedAssignments || [])
-                        .slice(0, 6)
-                        .map((a: any) => (
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="upcoming" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upcoming">Upcoming Tasks</TabsTrigger>
+                    <TabsTrigger value="history">Task History</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="upcoming" className="space-y-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Progress</span>
+                      <span>
+                        {completedAssignments.length}/{assignments.length}{" "}
+                        completed
+                      </span>
+                    </div>
+                    <Progress
+                      value={
+                        (completedAssignments.length / assignments.length) *
+                          100 || 0
+                      }
+                      className="h-2"
+                    />
+
+                    <div className="space-y-3 mt-4">
+                      {pendingAssignments.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No upcoming tasks
+                        </div>
+                      ) : (
+                        pendingAssignments.map((assignment: any) => (
                           <div
-                            key={a._id}
-                            className="p-2 rounded border bg-muted flex items-center justify-between cursor-pointer hover:bg-muted/50"
-                            onClick={() => setSelectedAssignment(a)}
+                            key={assignment._id}
+                            className={`flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors`}
+                            onClick={() => setSelectedAssignment(assignment)}
                           >
-                            <div className="min-w-0">
+                            {/* Mark complete button */}
+                            <button
+                              title="Mark as complete"
+                              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted/50"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await markAssignment({
+                                    assignmentId: assignment._id,
+                                    userId: convexUser.clerkId,
+                                    updates: {
+                                      status: "completed",
+                                      submittedDate: Date.now(),
+                                    },
+                                  });
+                                  sonnerToast.success("Task completed!");
+                                } catch (err) {
+                                  console.error("Failed to complete task", err);
+                                  sonnerToast.error("Failed to complete task");
+                                }
+                              }}
+                            >
+                              <svg
+                                className="w-4 h-4 text-muted-foreground"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth="2"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">
+                                {assignment.title}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Due: {formatDateString(assignment.dueDate)}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={getPriorityColor(
+                                  assignment.priority
+                                )}
+                              >
+                                {assignment.priority}
+                              </Badge>
+
+                              {/* Pin / Follow toggle for reminders */}
+                              <Button
+                                size="sm"
+                                variant={
+                                  followedItems.includes(
+                                    `assignment:${assignment._id}`
+                                  )
+                                    ? "default"
+                                    : "outline"
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFollow(`assignment:${assignment._id}`);
+                                }}
+                              >
+                                {followedItems.includes(
+                                  `assignment:${assignment._id}`
+                                )
+                                  ? "Pinned"
+                                  : "Pin"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  setEditingAssignment(assignment);
+                                  setShowTaskModal(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    if (!convexUser) {
+                                      sonnerToast.error(
+                                        "You must be logged in to delete assignments."
+                                      );
+                                      return;
+                                    }
+                                    await deleteAssignmentMutation({
+                                      assignmentId: assignment._id,
+                                      userId: convexUser.clerkId,
+                                    });
+                                    sonnerToast.success("Assignment deleted");
+                                    try {
+                                      router.refresh();
+                                    } catch (e) {}
+                                  } catch (err) {
+                                    console.error(
+                                      "delete assignment failed",
+                                      err
+                                    );
+                                    sonnerToast.error(
+                                      "Failed to delete assignment"
+                                    );
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="history" className="space-y-4">
+                    <div className="space-y-3">
+                      {completedAssignments.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No completed tasks yet
+                        </div>
+                      ) : (
+                        completedAssignments.map((assignment: any) => (
+                          <div
+                            key={assignment._id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setSelectedAssignment(assignment)}
+                          >
+                            <div className="min-w-0 flex-1">
                               <div className="truncate font-medium">
-                                {a.title}
+                                {assignment.title}
                               </div>
                               <div className="text-xs text-muted-foreground">
+                                Due: {formatDateString(assignment.dueDate)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Completed on{" "}
                                 {mounted
-                                  ? new Date(a.dueDate).toLocaleString()
+                                  ? new Date(
+                                      assignment.completedAt ||
+                                        assignment.dueDate
+                                    ).toLocaleDateString()
                                   : ""}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge className={getPriorityColor(a.priority)}>
-                                {a.priority}
+                              <Badge
+                                className={getPriorityColor(
+                                  assignment.priority
+                                )}
+                              >
+                                {assignment.priority}
                               </Badge>
-                              <span className="text-xs text-muted-foreground">
+                              <Badge className="bg-green-100 text-green-800">
                                 Completed
-                              </span>
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingAssignment(assignment);
+                                  setShowTaskModal(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    if (!convexUser) {
+                                      sonnerToast.error(
+                                        "You must be logged in to delete assignments."
+                                      );
+                                      return;
+                                    }
+                                    await deleteAssignmentMutation({
+                                      assignmentId: assignment._id,
+                                      userId: convexUser.clerkId,
+                                    });
+                                    sonnerToast.success("Assignment deleted");
+                                    try {
+                                      router.refresh();
+                                    } catch (e) {}
+                                  } catch (err) {
+                                    console.error(
+                                      "delete assignment failed",
+                                      err
+                                    );
+                                    sonnerToast.error(
+                                      "Failed to delete assignment"
+                                    );
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                        ))}
+                        ))
+                      )}
                     </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Course Management */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <div>
+                    <CardTitle className="text-lg">Course Management</CardTitle>
+                    <CardDescription>
+                      Manage your courses and academic schedule
+                    </CardDescription>
                   </div>
+                  <Button
+                    onClick={() => setShowCourseDialog(true)}
+                    size="sm"
+                    className="flex items-center gap-2 w-full sm:w-auto"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Course
+                  </Button>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="upcoming" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upcoming">Upcoming Courses</TabsTrigger>
+                    <TabsTrigger value="history">Course History</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upcoming" className="space-y-4">
+                    <div className="space-y-2">
+                      {upcomingCourses.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No upcoming courses scheduled
+                        </div>
+                      ) : (
+                        upcomingCourses.map((course: any) => (
+                          <div
+                            key={course._id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">
+                                {course.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {course.code} • {course.instructor}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {course.schedule?.days?.join(", ")} at{" "}
+                                {course.schedule?.time}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">
+                                {course.credits} credits
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingCourse(course);
+                                  setShowCourseDialog(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteCourse(course._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="history" className="space-y-4">
+                    <div className="space-y-2">
+                      {completedCourses.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No completed courses yet
+                        </div>
+                      ) : (
+                        completedCourses.map((course: any) => (
+                          <div
+                            key={course._id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">
+                                {course.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {course.code} • {course.instructor}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Completed • Grade: {course.grade || "N/A"}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">
+                                {course.credits} credits
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingCourse(course);
+                                  setShowCourseDialog(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteCourse(course._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Study Sessions */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <div>
+                    <CardTitle className="text-lg">Study Sessions</CardTitle>
+                    <CardDescription>
+                      Track your study time and sessions
+                    </CardDescription>
+                  </div>
+                  <StudySessionTimer>
+                    <Button
+                      size="sm"
+                      className="flex items-center gap-2 w-full sm:w-auto"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Session
+                    </Button>
+                  </StudySessionTimer>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="upcoming" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upcoming">
+                      Upcoming Sessions
+                    </TabsTrigger>
+                    <TabsTrigger value="history">Session History</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upcoming" className="space-y-4">
+                    <div className="space-y-2">
+                      {upcomingSessions.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No upcoming study sessions scheduled
+                        </div>
+                      ) : (
+                        upcomingSessions.map((session: any) => (
+                          <div
+                            key={session._id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">
+                                {session.title ||
+                                  session.subject ||
+                                  "Active Study Session"}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {session.subject || "Study Session"} •{" "}
+                                {session.plannedDuration ||
+                                  session.duration ||
+                                  0}{" "}
+                                minutes
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Started:{" "}
+                                {mounted
+                                  ? new Date(session.startTime).toLocaleString()
+                                  : ""}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-blue-100 text-blue-800">
+                                Active
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleCompleteSession(session._id)
+                                }
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <StudySessionTimer editSessionId={session._id}>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </StudySessionTimer>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteSession(session._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="history" className="space-y-4">
+                    <div className="space-y-2">
+                      {completedSessions.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No completed study sessions yet
+                        </div>
+                      ) : (
+                        completedSessions.map((session: any) => (
+                          <div
+                            key={session._id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">
+                                {session.title}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {session.subject || "Study Session"} •{" "}
+                                {session.duration ||
+                                  session.plannedDuration ||
+                                  0}{" "}
+                                minutes
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Completed on{" "}
+                                {mounted
+                                  ? new Date(
+                                      session.endTime || session.startTime
+                                    ).toLocaleDateString()
+                                  : ""}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-green-100 text-green-800">
+                                Completed
+                              </Badge>
+                              <StudySessionTimer editSessionId={session._id}>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </StudySessionTimer>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteSession(session._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Optimized Schedules */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <div>
+                    <CardTitle className="text-lg">
+                      Optimized Schedules
+                    </CardTitle>
+                    <CardDescription>
+                      AI-optimized schedules and schedule history
+                    </CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="flex items-center gap-2 w-full sm:w-auto"
+                    onClick={() => setShowEnhancerModal(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Optimize Schedule
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="current" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="current">Current Optimized</TabsTrigger>
+                    <TabsTrigger value="history">Schedule History</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="current" className="space-y-4">
+                    {activeOptimizedSchedule ? (
+                      <div className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-green-800 dark:text-green-200">
+                              Active Optimized Schedule
+                            </h4>
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              Active
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-green-700 dark:text-green-300 mb-2">
+                            {activeOptimizedSchedule.description ||
+                              "AI-optimized schedule for better productivity"}
+                          </p>
+                          <div className="text-xs text-green-600 dark:text-green-400">
+                            Created:{" "}
+                            {mounted
+                              ? new Date(
+                                  activeOptimizedSchedule.createdAt
+                                ).toLocaleDateString()
+                              : ""}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <h5 className="font-medium">Schedule Items:</h5>
+                          {(
+                            activeOptimizedSchedule.optimizedSchedule as OptimizedScheduleData
+                          )?.scheduleItems?.map(
+                            (item: OptimizedScheduleItem, index: number) => (
+                              <div
+                                key={index}
+                                className="p-3 border rounded-lg"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium">
+                                      {item.title}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {item.type} • {item.duration} minutes
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {mounted
+                                        ? new Date(
+                                            item.startTime
+                                          ).toLocaleString()
+                                        : ""}
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline">
+                                    {item.priority || "medium"}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <div className="mb-4">
+                          <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                        </div>
+                        <p>No active optimized schedule</p>
+                        <p className="text-sm">
+                          Use the "Optimize Schedule" button to create one
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="history" className="space-y-4">
+                    <div className="space-y-2">
+                      {optimizedSchedules && optimizedSchedules.length > 0 ? (
+                        optimizedSchedules.map((schedule: any) => (
+                          <div
+                            key={schedule._id}
+                            className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <h4 className="font-medium">
+                                  {schedule.name || "Optimized Schedule"}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {schedule.description ||
+                                    "AI-generated optimized schedule"}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {schedule.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    applyOptimizedSchedule({
+                                      scheduleId: schedule._id,
+                                    })
+                                  }
+                                >
+                                  Apply
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    deleteOptimizedSchedule({
+                                      scheduleId: schedule._id,
+                                    })
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Created:{" "}
+                              {mounted
+                                ? new Date(
+                                    schedule.createdAt
+                                  ).toLocaleDateString()
+                                : ""}
+                              {schedule.appliedAt && (
+                                <>
+                                  {" "}
+                                  • Applied:{" "}
+                                  {mounted
+                                    ? new Date(
+                                        schedule.appliedAt
+                                      ).toLocaleDateString()
+                                    : ""}
+                                </>
+                              )}
+                            </div>
+                            <div className="mt-2 text-sm">
+                              {(
+                                schedule.optimizedSchedule as OptimizedScheduleData
+                              )?.scheduleItems?.length || 0}{" "}
+                              items optimized
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <div className="mb-4">
+                            <Clock className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                          </div>
+                          <p>No optimized schedules yet</p>
+                          <p className="text-sm">
+                            Create your first optimized schedule above
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
 
@@ -2014,133 +2677,30 @@ export function PlannerHubEnhanced() {
           onSave={handleSaveAssignment}
         />
       )}
-      {/* Suggest Schedule Preview Dialog */}
-      <Dialog open={showSuggestPreview} onOpenChange={setShowSuggestPreview}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Suggested Study Schedule</DialogTitle>
-            <DialogDescription>
-              Preview suggested study blocks. Accept individual blocks before
-              creating sessions.
-            </DialogDescription>
-          </DialogHeader>
-          <CardContent>
-            {/* Preferences */}
-            <div className="mb-4 p-2 border rounded">
-              <div className="flex items-center gap-2">
-                <label className="text-sm">Horizon (days)</label>
-                <Input
-                  type="number"
-                  value={prefHorizon}
-                  onChange={(e) => {
-                    const v = Number(e.target.value || 7);
-                    setPrefHorizon(v);
-                    try {
-                      localStorage.setItem("scheduler.horizonDays", String(v));
-                    } catch {}
-                  }}
-                  className="w-24"
-                />
-                <label className="text-sm">Block (min)</label>
-                <Input
-                  type="number"
-                  value={prefBlockMinutes}
-                  onChange={(e) => {
-                    const v = Number(e.target.value || 60);
-                    setPrefBlockMinutes(v);
-                    try {
-                      localStorage.setItem("scheduler.blockMinutes", String(v));
-                    } catch {}
-                  }}
-                  className="w-24"
-                />
-                <label className="text-sm">Daily max (min)</label>
-                <Input
-                  type="number"
-                  value={prefDailyMax}
-                  onChange={(e) => {
-                    const v = Number(e.target.value || 180);
-                    setPrefDailyMax(v);
-                    try {
-                      localStorage.setItem(
-                        "scheduler.maxMinutesPerDay",
-                        String(v)
-                      );
-                    } catch {}
-                  }}
-                  className="w-24"
-                />
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    handleSuggestSchedule();
-                  }}
-                >
-                  Regenerate
-                </Button>
-              </div>
-            </div>
-
-            {suggestedBlocks && suggestedBlocks.length > 0 ? (
-              <div className="space-y-2">
-                {suggestedBlocks.map((b) => (
-                  <div
-                    key={b.id}
-                    className="p-2 rounded border flex items-center justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{b.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {mounted ? new Date(b.startTime).toLocaleString() : ""}{" "}
-                        • {b.minutes} min
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-1 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={!!acceptedMap[b.id]}
-                          onChange={(e) =>
-                            setAcceptedMap((prev) => ({
-                              ...prev,
-                              [b.id]: e.target.checked,
-                            }))
-                          }
-                        />
-                        Accept
-                      </label>
-                      <Badge>{b.assignmentId ? "Assignment" : "General"}</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                No suggestions were generated for the current tasks.
-              </div>
-            )}
-          </CardContent>
-          <div className="flex gap-2 mt-4">
-            <Button
-              onClick={() => {
-                if (suggestedBlocks) commitSuggested(suggestedBlocks);
-              }}
-            >
-              Create Sessions (accepted only)
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSuggestPreview(false);
-                setSuggestedBlocks(null);
-                setAcceptedMap({});
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ScheduleEnhancerModal
+        open={showEnhancerModal}
+        onOpenChange={setShowEnhancerModal}
+        schedule={scheduleData || []}
+        assignments={assignments || []}
+        events={calendarEvents || []}
+        tasks={[]} // TODO: pass tasks if available
+        studySessions={studySessions || []}
+        onOptimizeSchedule={(optimizedSchedule) => {
+          // TODO: Implement schedule update logic
+          console.log("Optimized schedule:", optimizedSchedule);
+          // For now, just show success message
+        }}
+      />
+      <CourseDialog
+        open={showCourseDialog}
+        onOpenChange={(open: boolean) => {
+          setShowCourseDialog(open);
+          if (!open) setEditingCourse(null);
+        }}
+        editingCourse={editingCourse}
+        onSave={{ createCourse, updateCourse }}
+        convexUser={convexUser}
+      />
     </>
   );
 }
@@ -2226,6 +2786,208 @@ function AssignmentDetailsDialog({
           </Button>
           <Button variant="ghost" onClick={onClose}>
             Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Course Dialog component
+function CourseDialog({
+  open,
+  onOpenChange,
+  editingCourse,
+  onSave,
+  convexUser,
+}: any) {
+  const [name, setName] = useState(editingCourse?.name || "");
+  const [code, setCode] = useState(editingCourse?.code || "");
+  const [instructor, setInstructor] = useState(editingCourse?.instructor || "");
+  const [credits, setCredits] = useState(editingCourse?.credits || 3);
+  const [description, setDescription] = useState(
+    editingCourse?.description || ""
+  );
+  const [schedule, setSchedule] = useState(
+    editingCourse?.schedule || {
+      days: [],
+      time: "",
+    }
+  );
+  const [grade, setGrade] = useState(editingCourse?.grade || "");
+
+  const handleSave = async () => {
+    if (!convexUser || !name.trim()) return;
+
+    try {
+      const courseData = {
+        name: name.trim(),
+        code: code.trim(),
+        instructor: instructor.trim(),
+        credits: parseInt(credits) || 3,
+        description: description.trim(),
+        schedule,
+        grade: grade.trim(),
+        status: editingCourse ? editingCourse.status : "active",
+      };
+
+      if (editingCourse) {
+        await onSave.updateCourse({
+          courseId: editingCourse._id,
+          userId: convexUser.clerkId,
+          updates: courseData,
+        });
+        sonnerToast.success("Course updated");
+      } else {
+        await onSave.createCourse({
+          userId: convexUser.clerkId,
+          ...courseData,
+        });
+        sonnerToast.success("Course created");
+      }
+
+      onOpenChange(false);
+      // Reset form
+      setName("");
+      setCode("");
+      setInstructor("");
+      setCredits(3);
+      setDescription("");
+      setSchedule({ days: [], time: "" });
+      setGrade("");
+    } catch (e) {
+      sonnerToast.error("Failed to save course");
+    }
+  };
+
+  const daysOfWeek = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {editingCourse ? "Edit Course" : "Add New Course"}
+          </DialogTitle>
+          <DialogDescription>
+            {editingCourse
+              ? "Update your course information"
+              : "Add a new course to your academic schedule"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="text-sm font-medium">Course Name</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Introduction to Computer Science"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-sm font-medium">Course Code</label>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="e.g., CS101"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Credits</label>
+              <Input
+                type="number"
+                value={credits}
+                onChange={(e) => setCredits(e.target.value)}
+                min="1"
+                max="6"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Instructor</label>
+            <Input
+              value={instructor}
+              onChange={(e) => setInstructor(e.target.value)}
+              placeholder="e.g., Prof. Smith"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Schedule</label>
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Days</label>
+                <div className="flex flex-wrap gap-1">
+                  {daysOfWeek.map((day) => (
+                    <Button
+                      key={day}
+                      type="button"
+                      variant={
+                        schedule.days?.includes(day) ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => {
+                        const newDays = schedule.days?.includes(day)
+                          ? schedule.days.filter((d: string) => d !== day)
+                          : [...(schedule.days || []), day];
+                        setSchedule({ ...schedule, days: newDays });
+                      }}
+                    >
+                      {day.slice(0, 3)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <Input
+                value={schedule.time || ""}
+                onChange={(e) =>
+                  setSchedule({ ...schedule, time: e.target.value })
+                }
+                placeholder="e.g., 10:00 AM - 11:30 AM"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Course description..."
+              rows={2}
+            />
+          </div>
+
+          {editingCourse && (
+            <div>
+              <label className="text-sm font-medium">Grade (optional)</label>
+              <Input
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                placeholder="e.g., A, B+, 95%"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          <Button onClick={handleSave} disabled={!name.trim()}>
+            {editingCourse ? "Update Course" : "Create Course"}
+          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
           </Button>
         </div>
       </DialogContent>

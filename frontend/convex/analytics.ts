@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // Get analytics summary for a user over a period
 export const getAnalyticsSummary = query({
@@ -77,7 +78,7 @@ export const getStudySessions = query({
         subject: sAny.subject || sAny.title || "General Study",
         title: sAny.title || sAny.subject || "Study Session",
         description: sAny.description || "",
-        completed: sAny.isCompleted || true,
+        isCompleted: sAny.isCompleted || false,
         audioQueue: sAny.audioQueue || [],
       };
     });
@@ -198,17 +199,69 @@ export const upsertAcademicAnalytics = mutation({
     };
 
     if (existing) {
-      return await ctx.db.patch(existing._id, data);
+      await ctx.db.patch(existing._id, data);
     } else {
-      return await ctx.db.insert("academicAnalytics", {
+      await ctx.db.insert("academicAnalytics", {
         ...data,
         createdAt: now,
       });
     }
+
+    // #codebase: Check for academic milestones and create notifications
+    // Study hours milestone
+    if (
+      args.totalStudyHours &&
+      args.studyGoalHours &&
+      args.totalStudyHours >= args.studyGoalHours
+    ) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: args.userId,
+        title: "Study Goal Achieved! 🎉",
+        message: `Congratulations! You've reached your ${args.studyGoalHours} hour study goal.`,
+        type: "milestone_achieved",
+        priority: "high",
+        relatedId: args.userId,
+        relatedType: "analytics",
+        actionUrl: "/dashboard/analytics",
+      });
+    }
+
+    // GPA target milestone
+    if (args.gpa && args.gpaTarget && args.gpa >= args.gpaTarget) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: args.userId,
+        title: "GPA Target Reached! 📈",
+        message: `Excellent work! You've achieved your target GPA of ${args.gpaTarget}.`,
+        type: "milestone_achieved",
+        priority: "high",
+        relatedId: args.userId,
+        relatedType: "analytics",
+        actionUrl: "/dashboard/analytics",
+      });
+    }
+
+    // Assignment completion milestone
+    if (
+      args.assignmentsCompleted &&
+      args.completionTarget &&
+      args.assignmentsTotal &&
+      args.assignmentsCompleted >= args.completionTarget
+    ) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: args.userId,
+        title: "Assignment Goal Met! ✅",
+        message: `You've completed ${args.assignmentsCompleted} assignments - great progress!`,
+        type: "milestone_achieved",
+        priority: "medium",
+        relatedId: args.userId,
+        relatedType: "analytics",
+        actionUrl: "/dashboard/planner",
+      });
+    }
+
+    return data;
   },
 });
-
-// Create a new study session
 export const createStudySession = mutation({
   args: {
     userId: v.string(),
@@ -254,6 +307,7 @@ export const createStudySession = mutation({
 export const updateStudySession = mutation({
   args: {
     sessionId: v.id("studySessions"),
+    startTime: v.optional(v.number()),
     endTime: v.optional(v.number()),
     duration: v.optional(v.number()),
     focusScore: v.optional(v.number()),

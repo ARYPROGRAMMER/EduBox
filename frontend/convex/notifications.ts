@@ -19,9 +19,7 @@ export const getUserNotifications = query({
       query = query.filter((q) => q.neq(q.field("isArchived"), true));
     }
 
-    const notifications = await query
-      .order("desc")
-      .take(limit);
+    const notifications = await query.order("desc").take(limit);
 
     return notifications;
   },
@@ -33,7 +31,7 @@ export const getUnreadCount = query({
   handler: async (ctx, args) => {
     const unreadNotifications = await ctx.db
       .query("notifications")
-      .withIndex("by_user_and_read", (q) => 
+      .withIndex("by_user_and_read", (q) =>
         q.eq("userId", args.userId).eq("isRead", false)
       )
       .filter((q) => q.neq(q.field("isArchived"), true))
@@ -111,7 +109,7 @@ export const markAllAsRead = mutation({
   handler: async (ctx, args) => {
     const unreadNotifications = await ctx.db
       .query("notifications")
-      .withIndex("by_user_and_read", (q) => 
+      .withIndex("by_user_and_read", (q) =>
         q.eq("userId", args.userId).eq("isRead", false)
       )
       .collect();
@@ -183,7 +181,7 @@ export const generateAssignmentReminders = mutation({
     const assignments = await ctx.db
       .query("assignments")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.gte(q.field("dueDate"), now),
           q.eq(q.field("status"), "pending")
@@ -195,7 +193,7 @@ export const generateAssignmentReminders = mutation({
 
     for (const assignment of assignments) {
       const timeDiff = assignment.dueDate - now;
-      
+
       // Check if we need to create reminders
       if (timeDiff <= oneDayFromNow && timeDiff > 0) {
         // 1 day reminder
@@ -245,7 +243,7 @@ export const generateAssignmentReminders = mutation({
       // Check if similar notification already exists
       const existing = await ctx.db
         .query("notifications")
-        .withIndex("by_user_and_type", (q) => 
+        .withIndex("by_user_and_type", (q) =>
           q.eq("userId", args.userId).eq("type", "assignment")
         )
         .filter((q) => q.eq(q.field("relatedId"), notification.relatedId))
@@ -272,7 +270,7 @@ export const generateStudyReminders = mutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     const now = Date.now();
-    
+
     // Get user preferences
     const userPrefs = await ctx.db
       .query("userPreferences")
@@ -290,13 +288,13 @@ export const generateStudyReminders = mutation({
 
     const notifications = [];
     const today = new Date();
-    
+
     // Generate study reminders for preferred times
     for (const timeStr of studySettings.preferredStudyTimes) {
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [hours, minutes] = timeStr.split(":").map(Number);
       const studyTime = new Date(today);
       studyTime.setHours(hours, minutes, 0, 0);
-      
+
       // If the time has passed today, schedule for tomorrow
       if (studyTime.getTime() < now) {
         studyTime.setDate(studyTime.getDate() + 1);
@@ -336,7 +334,7 @@ export const getNotificationsSummary = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     const now = Date.now();
-    
+
     const notifications = await ctx.db
       .query("notifications")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
@@ -344,9 +342,9 @@ export const getNotificationsSummary = query({
       .order("desc")
       .take(50);
 
-    const unread = notifications.filter(n => !n.isRead);
-    const today = notifications.filter(n => 
-      n.createdAt > now - 24 * 60 * 60 * 1000
+    const unread = notifications.filter((n) => !n.isRead);
+    const today = notifications.filter(
+      (n) => n.createdAt > now - 24 * 60 * 60 * 1000
     );
 
     const byType = notifications.reduce((acc, n) => {
@@ -361,5 +359,41 @@ export const getNotificationsSummary = query({
       byType,
       recent: notifications.slice(0, 5),
     };
+  },
+});
+
+// Dismiss notifications by related ID and type
+export const dismissNotificationsByRelatedId = mutation({
+  args: {
+    userId: v.string(),
+    relatedId: v.string(),
+    relatedType: v.string(),
+    excludeType: v.optional(v.string()), // Optional: don't dismiss notifications of this type
+  },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("relatedId"), args.relatedId),
+          q.eq(q.field("relatedType"), args.relatedType),
+          q.neq(q.field("isArchived"), true)
+        )
+      )
+      .collect();
+
+    const toArchive = notifications.filter(
+      (n) => !args.excludeType || n.type !== args.excludeType
+    );
+
+    for (const notification of toArchive) {
+      await ctx.db.patch(notification._id, {
+        isArchived: true,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return toArchive.length;
   },
 });

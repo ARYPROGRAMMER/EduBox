@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Generate upload URL for file storage
 export const generateUploadUrl = mutation(async (ctx) => {
@@ -42,6 +43,19 @@ export const storeFile = mutation({
       uploadedAt: now,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // #codebase: Create notification for file upload completion
+    await ctx.runMutation(api.notifications.createNotification, {
+      userId: args.userId,
+      title: "File Uploaded Successfully",
+      message: `"${args.originalName}" has been uploaded to your ${args.category} files.`,
+      type: "file_uploaded",
+      priority: "low",
+      relatedId: fileId,
+      relatedType: "file",
+      actionUrl: "/dashboard/files",
+      actionLabel: "View Files",
     });
 
     return fileId;
