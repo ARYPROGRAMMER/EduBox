@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { PageLoader } from "@/components/ui/loader";
 import { ThemeProvider } from "next-themes";
 import { LoadingProvider } from "@/components/ui/loading-context";
+import { Analytics } from "@vercel/analytics/react";
 
 const comfortaa = Comfortaa({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({
               <ClientWrapper>
                 <main>{children}</main>
                 <Toaster position="bottom-left" />
+                <Analytics />
               </ClientWrapper>
 
             </ThemeProvider>
