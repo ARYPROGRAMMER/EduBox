@@ -50,7 +50,6 @@ export default function RootLayout({
                 <Toaster position="bottom-left" />
                 <Analytics />
               </ClientWrapper>
-
             </ThemeProvider>
           </LoadingProvider>
         </Suspense>
