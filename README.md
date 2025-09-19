@@ -192,7 +192,7 @@ graph TB
 
 ## 🎥 Demo Video
 
-[![Demo Video](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://youtube.com/watch?v=your-demo-video-id)
+[![Demo Video](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF)
 
 ---
 

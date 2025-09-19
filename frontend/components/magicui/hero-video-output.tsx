@@ -21,15 +21,15 @@ export function HeroVideoDialogDemo() {
           <HeroVideoDialog
             className="block dark:hidden"
             animationStyle="from-center"
-            videoSrc="https://www.youtube.com/embed/qh3NGpYRG3I?si=4rb-zSdDkVK9qxxb"
-            thumbnailSrc="https://startup-template-sage.vercel.app/hero-light.png"
+            videoSrc="https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF"
+            thumbnailSrc="https://img.youtube.com/vi/DkRr0VcmkHc/maxresdefault.jpg"
             thumbnailAlt="EduBox Demo Video"
           />
           <HeroVideoDialog
             className="hidden dark:block"
             animationStyle="from-center"
-            videoSrc="https://www.youtube.com/embed/qh3NGpYRG3I?si=4rb-zSdDkVK9qxxb"
-            thumbnailSrc="https://startup-template-sage.vercel.app/hero-dark.png"
+            videoSrc="https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF"
+            thumbnailSrc="https://img.youtube.com/vi/DkRr0VcmkHc/maxresdefault.jpg"
             thumbnailAlt="EduBox Demo Video"
           />
 
