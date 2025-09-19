@@ -89,6 +89,10 @@ EduBox is an intelligent student hub that organizes notes, schedules, assignment
   Your browser does not support the video tag.
 </video>
 
+### Dashboard Screenshot
+
+![Dashboard Screenshot](screenshots/f6.jpeg)
+
 ### Global Semantic Search
 
 ![Global Semantic Search Screenshot](screenshots/f1.jpeg)
