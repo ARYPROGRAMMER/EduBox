@@ -1,0 +1,36 @@
+{
+  "name": "edubox-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EduBox - Intelligent student hub with AI assistance",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:convex\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && pnpm dev",
+    "dev:backend": "cd backend/nuclia-sync && npm run dev",
+    "dev:convex": "cd frontend && npx convex dev",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd frontend && pnpm install",
+    "install:backend": "cd backend/nuclia-sync && npm install",
+    "build:frontend": "cd frontend && pnpm build",
+    "lint:frontend": "cd frontend && pnpm lint",
+    "setup": "npm run install:all && echo '\\n✅ Dependencies installed!\\n\\nNext steps:\\n1. Copy frontend/env.example to frontend/.env.local\\n2. Fill in your API keys\\n3. Run: npm run dev\\n'"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "education",
+    "ai",
+    "student-hub",
+    "nextjs",
+    "convex",
+    "copilotkit",
+    "rag"
+  ],
+  "author": "Arya Singh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ARYPROGRAMMER/EduBox.git"
+  }
+}
