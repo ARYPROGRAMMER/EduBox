@@ -215,6 +215,17 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
   const convex = getConvexClient();
   const results: any[] = [];
 
+  // Helper to find course ID by name or code
+  function findCourseId(courseNameOrCode: string | undefined): string | undefined {
+    if (!courseNameOrCode || !context?.userContext?.courses) return undefined;
+    const course = context.userContext.courses.find(
+      (c: any) =>
+        String(c.name || "").toLowerCase().includes(String(courseNameOrCode).toLowerCase()) ||
+        String(c.code || "").toLowerCase().includes(String(courseNameOrCode).toLowerCase())
+    );
+    return course?.id;
+  }
+
   // Accept if toolCalls is promise-like
   const calls = await extractToolCallsPossiblyPromise(toolCalls);
 
@@ -292,16 +303,7 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
             dueTimestamp = dt.getTime();
           }
 
-          // Try match course id from context
-          let courseId = undefined;
-          if (courseName && context?.userContext?.courses) {
-            const course = context.userContext.courses.find(
-              (c: any) =>
-                String(c.name || "").toLowerCase().includes(String(courseName).toLowerCase()) ||
-                String(c.code || "").toLowerCase().includes(String(courseName).toLowerCase())
-            );
-            courseId = course?.id;
-          }
+          const courseId = findCourseId(courseName);
 
           const assignmentId = await convex.mutation(api.assignments.createAssignment, {
             userId,
@@ -347,18 +349,7 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
           const location = normalizeStringArg(safeArgs.location) || "TBD";
 
-          let courseId = undefined;
-          if (safeArgs.courseName && context?.userContext?.courses) {
-            const courseName = normalizeStringArg(safeArgs.courseName);
-            if (courseName) {
-              const course = context.userContext.courses.find(
-                (c: any) =>
-                  String(c.name || "").toLowerCase().includes(String(courseName).toLowerCase()) ||
-                  String(c.code || "").toLowerCase().includes(String(courseName).toLowerCase())
-              );
-              courseId = course?.id;
-            }
-          }
+          const courseId = findCourseId(normalizeStringArg(safeArgs.courseName));
 
           const eventId = await convex.mutation(api.events.createEvent, {
             userId,
@@ -398,15 +389,7 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
           const studyMethod = normalizeStringArg(safeArgs.studyMethod) || "pomodoro";
           const location = normalizeStringArg(safeArgs.location) || "Library";
 
-          let courseId = undefined;
-          if (subject && context?.userContext?.courses) {
-            const course = context.userContext.courses.find(
-              (c: any) =>
-                String(c.name || "").toLowerCase().includes(String(subject).toLowerCase()) ||
-                String(c.code || "").toLowerCase().includes(String(subject).toLowerCase())
-            );
-            courseId = course?.id;
-          }
+          const courseId = findCourseId(subject);
 
           const sessionId = await convex.mutation(api.analytics.createStudySession, {
             userId,
