@@ -23,6 +23,9 @@
       <a href="https://clerk.com/" aria-label="Clerk">
          <img src="https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
       </a>
+      <a href="https://edubox-ai.vercel.app/" aria-label="Live Demo">
+         <img src="https://img.shields.io/badge/Live_Demo-Visit-blue?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+      </a>
       <a href="LICENSE" aria-label="License">
          <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License" />
       </a>
@@ -77,19 +80,34 @@ EduBox is an intelligent student hub that organizes notes, schedules, assignment
 ## 📸 Screenshots
 
 <details>
-<summary>Click to expand screenshots</summary>
+<summary>Click to expand media</summary>
 
-### Dashboard Overview
+### Landing Page Video
 
-![Dashboard](https://via.placeholder.com/800x400?text=Dashboard+Screenshot)
+<video width="800" controls>
+  <source src="screenshots/f.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
-### AI Assistant
+### Global Semantic Search
 
-![AI Assistant](https://via.placeholder.com/800x400?text=AI+Assistant+Screenshot)
+![Global Semantic Search Screenshot](screenshots/f1.jpeg)
 
-### Planner
+### Locked Feature
 
-![Planner](https://via.placeholder.com/800x400?text=Planner+Screenshot)
+![Locked Feature Screenshot](screenshots/f2.jpeg)
+
+### AI Study Assistant
+
+![AI Study Assistant Screenshot](screenshots/f3.jpeg)
+
+### Kendo RAG Search
+
+![Kendo RAG Search Screenshot 1](screenshots/f4.jpeg)
+
+### Notifications and Planner Hub
+
+![Notifications and Planner Hub Screenshot 2](screenshots/f5.jpeg)
 
 </details>
 
@@ -102,6 +120,8 @@ EduBox is an intelligent student hub that organizes notes, schedules, assignment
 - Node.js 18+ and pnpm
 - Git
 - Accounts for: Clerk, Convex, Schematic, Nuclia (Progress RAG), Google AI, Groq
+
+### Make Sure you know about each cloud service's dashboard setup and pricing. We do not discuss that here.
 
 ### 1. Clone and Setup
 
@@ -160,6 +180,8 @@ npm start
 ```env
 PORT=4000
 NUCLIA_API_KEY=your_nuclia_api_key
+NUCLIA_API_URL=https://nuclia.cloud/api
+NUCLIA_DEFAULT_KB=your_default_kb_id
 ```
 
 ### Option 2: Frontend Development Setup
@@ -418,5 +440,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Made with ❤️ by Arya • <a href="https://github.com/ARYPROGRAMMER">GitHub</a> • <a href="https://edubox.dev">Website</a></p>
+  <p>Made with ❤️ by Arya • <a href="https://github.com/ARYPROGRAMMER">GitHub</a> • <a href="https://edubox-ai.vercel.app/">Website</a></p>
 </div>
