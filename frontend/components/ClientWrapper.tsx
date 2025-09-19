@@ -21,7 +21,7 @@ export default function ClientWrapper({
     <ConvexClientProvider>
       <ClerkProvider>
         <SchematicProvider publishableKey={schematicPubKey}>
-          <CopilotKit runtimeUrl="/api/copilotkit">
+          <CopilotKit publicLicenseKey={process.env.NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY} publicApiKey={process.env.NEXT_PUBLIC_COPILOTKIT_PUBLIC_API_KEY} runtimeUrl="/api/copilotkit">
             <SchematicWrapped>{children}</SchematicWrapped>
           </CopilotKit>
         </SchematicProvider>
