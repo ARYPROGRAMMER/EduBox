@@ -1,52 +1,36 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 
 interface ForceDarkProps {
   children: React.ReactNode;
 }
 
 export default function ForceDark({ children }: ForceDarkProps) {
+  const { setTheme } = useTheme();
+  const previousThemeRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const el = document.documentElement;
+    // Get the current theme before forcing dark
+    const currentTheme = localStorage.getItem("edubox-theme") || "system";
+    previousThemeRef.current = currentTheme;
 
-    // Save previous state to restore on unmount
-    const prevClass = el.className;
-    const prevColorScheme = el.style.colorScheme || "";
-    const body = document.body;
-    const prevBodyOverflowX = body.style.overflowX || "";
+    // Force dark theme for landing page
+    setTheme("dark");
 
-    // Ensure dark class present and light removed
-    if (!el.classList.contains("dark")) el.classList.add("dark");
-    el.classList.remove("light");
-    el.style.colorScheme = "dark";
-
-    // Hide horizontal overflow while landing page is mounted to avoid horizontal scroll
-    body.style.overflowX = "hidden";
-
-    // Watch for any attempts to re-add `light` and remove it immediately
-    const obs = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === "attributes" && m.attributeName === "class") {
-          if (el.classList.contains("light")) {
-            el.classList.remove("light");
-            if (!el.classList.contains("dark")) el.classList.add("dark");
-            el.style.colorScheme = "dark";
-          }
-        }
-      }
-    });
-
-    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    // Hide horizontal overflow while landing page is mounted
+    document.body.style.overflowX = "hidden";
 
     return () => {
-      obs.disconnect();
-      // Restore previous values
-      el.className = prevClass;
-      el.style.colorScheme = prevColorScheme;
-      body.style.overflowX = prevBodyOverflowX;
+      // Restore previous theme on unmount
+      if (previousThemeRef.current) {
+        setTheme(previousThemeRef.current);
+      }
+      // Clean up overflow setting on unmount
+      document.body.style.overflowX = "";
     };
-  }, []);
+  }, [setTheme]);
 
   return <>{children}</>;
 }

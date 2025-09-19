@@ -1,46 +1,31 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 
 interface ForceLightProps {
   children: React.ReactNode;
 }
 
 export default function ForceLight({ children }: ForceLightProps) {
+  const { setTheme } = useTheme();
+  const previousThemeRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const el = document.documentElement;
+    // Get the current theme before forcing light
+    const currentTheme = localStorage.getItem("edubox-theme") || "system";
+    previousThemeRef.current = currentTheme;
 
-    // Save previous state to restore on unmount
-    const prevClass = el.className;
-    const prevColorScheme = el.style.colorScheme || "";
-
-    // Ensure light class present and dark removed
-    el.classList.remove("dark");
-    if (!el.classList.contains("light")) el.classList.add("light");
-    el.style.colorScheme = "light";
-
-    // Watch for any attempts to re-add `dark` and remove it immediately
-    const obs = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === "attributes" && m.attributeName === "class") {
-          if (el.classList.contains("dark")) {
-            el.classList.remove("dark");
-            if (!el.classList.contains("light")) el.classList.add("light");
-            el.style.colorScheme = "light";
-          }
-        }
-      }
-    });
-
-    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    // Force light theme
+    setTheme("light");
 
     return () => {
-      obs.disconnect();
-      // Restore previous values
-      el.className = prevClass;
-      el.style.colorScheme = prevColorScheme;
+      // Restore previous theme on unmount
+      if (previousThemeRef.current) {
+        setTheme(previousThemeRef.current);
+      }
     };
-  }, []);
+  }, [setTheme]);
 
   return <>{children}</>;
 }

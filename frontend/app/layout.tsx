@@ -44,6 +44,7 @@ export default function RootLayout({
               defaultTheme="system"
               enableSystem
               disableTransitionOnChange
+              storageKey="edubox-theme"
             >
               <ClientWrapper>
                 <main>{children}</main>
