@@ -51,7 +51,7 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
   );
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Convex queries and mutations
   const messages = useQuery(
@@ -242,6 +242,20 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
       setIsTyping(false);
     }
   }, [dedupedMessages, streamingText]);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      const scrollHeight = inputRef.current.scrollHeight;
+      inputRef.current.style.height = Math.min(scrollHeight, 120) + "px";
+
+      // Scroll to bottom if textarea is at max height
+      if (scrollHeight > 120) {
+        inputRef.current.scrollTop = inputRef.current.scrollHeight;
+      }
+    }
+  }, [inputValue]);
 
   // Create session if it doesn't exist but only when we have messages or are sending one
   const ensureSession = async () => {
@@ -444,10 +458,19 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim()) {
       sendMessage(inputValue);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (inputValue.trim() && !isSending && canUseAI && !hasReachedLimit) {
+        sendMessage(inputValue);
+      }
     }
   };
 
@@ -607,17 +630,19 @@ export function ChatInterface({ onClose, sessionId }: ChatInterfaceProps) {
             </div>
           )}
           <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
+            <textarea
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder={
                 !canUseAI
                   ? "AI unavailable — upgrade to use"
                   : "Ask me anything about your academics..."
               }
               disabled={isSending || !canUseAI || hasReachedLimit}
-              className="flex-1"
+              className="flex-1 min-h-[40px] max-h-[120px] resize-none overflow-y-auto rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              rows={1}
             />
             <Button
               type="submit"
