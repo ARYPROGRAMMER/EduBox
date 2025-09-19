@@ -137,6 +137,18 @@ export const deleteCourse = mutation({
       throw new Error("Course not found or access denied");
     }
 
+    // Delete associated notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("relatedId"), args.courseId))
+      .filter((q) => q.eq(q.field("relatedType"), "course"))
+      .collect();
+
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     await ctx.db.delete(args.courseId);
     return { success: true };
   },

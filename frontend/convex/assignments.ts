@@ -233,6 +233,18 @@ export const deleteAssignment = mutation({
       throw new Error("Assignment not found or access denied");
     }
 
+    // Delete associated notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("relatedId"), args.assignmentId))
+      .filter((q) => q.eq(q.field("relatedType"), "assignment"))
+      .collect();
+
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     await ctx.db.delete(args.assignmentId);
     return { success: true };
   },

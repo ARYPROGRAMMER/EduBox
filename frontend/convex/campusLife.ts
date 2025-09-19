@@ -115,6 +115,23 @@ export const deleteCampusEvent = mutation({
     eventId: v.id("campusLife"),
   },
   handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+
+    if (!event) {
+      throw new Error("Campus event not found");
+    }
+
+    // Delete associated notifications for all users
+    const notifications = await ctx.db
+      .query("notifications")
+      .filter((q) => q.eq(q.field("relatedId"), args.eventId))
+      .filter((q) => q.eq(q.field("relatedType"), "campus-event"))
+      .collect();
+
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     await ctx.db.delete(args.eventId);
     return true;
   },

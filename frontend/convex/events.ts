@@ -220,6 +220,18 @@ export const deleteEvent = mutation({
       throw new Error("Event not found or access denied");
     }
 
+    // Delete associated notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("relatedId"), args.eventId))
+      .filter((q) => q.eq(q.field("relatedType"), "event"))
+      .collect();
+
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     await ctx.db.delete(args.eventId);
     return { success: true };
   },
