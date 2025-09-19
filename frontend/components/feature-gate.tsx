@@ -27,9 +27,18 @@ export function FeatureGate({
   fallback,
   showUpgrade = true,
 }: FeatureGateProps) {
-  const { hasAccess, usage, limit, plan, hasReachedLimit } =
+  const { hasAccess, usage, limit, plan, hasReachedLimit, isLoading } =
     useFeatureAccess(feature);
   const router = useRouter();
+
+  // Show loading state while determining access
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (hasAccess) {
     return <>{children}</>;
@@ -90,7 +99,7 @@ export function FeatureGate({
 
 // Hook for checking feature access in components
 export function useFeatureGate(feature: string) {
-  const { hasAccess, usage, limit, plan, hasReachedLimit } =
+  const { hasAccess, usage, limit, plan, hasReachedLimit, isLoading } =
     useFeatureAccess(feature);
 
   return {
@@ -99,6 +108,7 @@ export function useFeatureGate(feature: string) {
     limit,
     plan,
     hasReachedLimit,
+    isLoading,
     checkAccess: () => hasAccess,
   };
 }

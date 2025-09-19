@@ -123,7 +123,7 @@ interface ProfileFormData {
 
 export function ProfilePage() {
   const { user: convexUser, clerkUser } = useConvexUser();
-  const { plan, planInfo } = useUserPlan();
+  const { plan, planInfo, isLoading: planLoading } = useUserPlan();
   const router = useRouter();
   // controlled tab state so we can respond to URL hash fragments
   const [activeTab, setActiveTab] = useState<string>("personal");
@@ -557,8 +557,12 @@ export function ProfilePage() {
                     variant={getPlanBadgeVariant()}
                     className="flex items-center gap-1"
                   >
-                    {getPlanIcon()}
-                    {planInfo.name} Plan
+                    {planLoading ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
+                    ) : (
+                      getPlanIcon()
+                    )}
+                    {planLoading ? "Loading Plan..." : `${planInfo.name} Plan`}
                   </Badge>
                 </div>
               </div>
@@ -630,7 +634,11 @@ export function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                {getPlanIcon()}
+                {planLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                ) : (
+                  getPlanIcon()
+                )}
                 Current Plan
               </CardTitle>
               <CardDescription>
@@ -638,112 +646,131 @@ export function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold">
-                      {planInfo.name} Plan
-                    </h3>
-                    <Badge
-                      variant={getPlanBadgeVariant()}
-                      className="flex items-center gap-1"
-                    >
-                      {getPlanIcon()}
-                      Active
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {planInfo.description}
-                  </p>
+              {planLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-2 text-gray-600">
+                    Loading plan details...
+                  </span>
                 </div>
-                <Button onClick={() => router.push("/manage-plan")}>
-                  {plan === "FREE" ? "Upgrade Plan" : "Manage Plan"}
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="text-md font-medium">Available Features</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {planInfo.features.map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
-                    >
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm capitalize">
-                        {feature.replace(/-/g, " ")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {plan !== "PRO" && (
+              ) : (
                 <>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold">
+                          {planInfo.name} Plan
+                        </h3>
+                        <Badge
+                          variant={getPlanBadgeVariant()}
+                          className="flex items-center gap-1"
+                        >
+                          {getPlanIcon()}
+                          Active
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {planInfo.description}
+                      </p>
+                    </div>
+                    <Button onClick={() => router.push("/manage-plan")}>
+                      {plan === "FREE" ? "Upgrade Plan" : "Manage Plan"}
+                    </Button>
+                  </div>
+
                   <Separator />
+
                   <div className="space-y-4">
-                    <h4 className="text-md font-medium">Upgrade Benefits</h4>
+                    <h4 className="text-md font-medium">Available Features</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {plan === "FREE" && (
+                      {planInfo.features.map((feature) => (
+                        <div
+                          key={feature}
+                          className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+                        >
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm capitalize">
+                            {feature.replace(/-/g, " ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {plan !== "PRO" && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <h4 className="text-md font-medium">
+                          Upgrade Benefits
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {plan === "FREE" && (
+                            <>
+                              <div className="flex items-center gap-2 p-2 rounded-md">
+                                <Zap className="w-4 h-4 text-orange-500" />
+                                <span className="text-sm">
+                                  10x more AI interactions
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 rounded-md">
+                                <BookOpen className="w-4 h-4 text-blue-500" />
+                                <span className="text-sm">
+                                  Advanced analytics
+                                </span>
+                              </div>
+                            </>
+                          )}
+                          {(plan === "FREE" || plan === "STARTER") && (
+                            <>
+                              <div className="flex items-center gap-2 p-2 rounded-md">
+                                <Crown className="w-4 h-4 text-purple-500" />
+                                <span className="text-sm">
+                                  Unlimited storage
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 rounded-md">
+                                <Shield className="w-4 h-4 text-green-500" />
+                                <span className="text-sm">
+                                  Priority support
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h4 className="text-md font-medium">Feature Usage</h4>
+                    <div className="space-y-4">
+                      <Usage
+                        featureFlag={FeatureFlag.AI_CHAT_ASSISTANT}
+                        title="AI Chat Assistant"
+                      />
+                      <Usage
+                        featureFlag={FeatureFlag.FILE_MANAGEMENT}
+                        title="File Storage"
+                      />
+                      {plan !== "FREE" && (
                         <>
-                          <div className="flex items-center gap-2 p-2 rounded-md">
-                            <Zap className="w-4 h-4 text-orange-500" />
-                            <span className="text-sm">
-                              10x more AI interactions
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 p-2 rounded-md">
-                            <BookOpen className="w-4 h-4 text-blue-500" />
-                            <span className="text-sm">Advanced analytics</span>
-                          </div>
-                        </>
-                      )}
-                      {(plan === "FREE" || plan === "STARTER") && (
-                        <>
-                          <div className="flex items-center gap-2 p-2 rounded-md">
-                            <Crown className="w-4 h-4 text-purple-500" />
-                            <span className="text-sm">Unlimited storage</span>
-                          </div>
-                          <div className="flex items-center gap-2 p-2 rounded-md">
-                            <Shield className="w-4 h-4 text-green-500" />
-                            <span className="text-sm">Priority support</span>
-                          </div>
+                          <Usage
+                            featureFlag={FeatureFlag.ADVANCED_SEARCH}
+                            title="Advanced Search"
+                          />
+                          <Usage
+                            featureFlag={FeatureFlag.COURSE_ANALYTICS}
+                            title="Course Analytics"
+                          />
                         </>
                       )}
                     </div>
                   </div>
                 </>
               )}
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="text-md font-medium">Feature Usage</h4>
-                <div className="space-y-4">
-                  <Usage
-                    featureFlag={FeatureFlag.AI_CHAT_ASSISTANT}
-                    title="AI Chat Assistant"
-                  />
-                  <Usage
-                    featureFlag={FeatureFlag.FILE_MANAGEMENT}
-                    title="File Storage"
-                  />
-                  {plan !== "FREE" && (
-                    <>
-                      <Usage
-                        featureFlag={FeatureFlag.ADVANCED_SEARCH}
-                        title="Advanced Search"
-                      />
-                      <Usage
-                        featureFlag={FeatureFlag.COURSE_ANALYTICS}
-                        title="Course Analytics"
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
