@@ -1,10 +1,11 @@
+![EduBox](https://socialify.git.ci/ARYPROGRAMMER/EduBox/image?font=KoHo&forks=1&issues=1&language=1&name=1&owner=1&pattern=Floating+Cogs&stargazers=1&theme=Dark)
+
+---
+
 <div align="center" style="margin-top: 12px;">
    <img src="frontend/public/logo-text.png" alt="EduBox" width="300" />
-
-   <h1 style="margin-top: 8px; margin-bottom: 4px;">EduBox</h1>
    <p style="margin-top: 0; color: #555;">Your intelligent student hub — notes, planner, campus life, and an AI assistant in one app.</p>
 
-   <!-- Badges: responsive rows, 4-5 per row depending on viewport -->
    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;">
       <!-- Row 1: core tech -->
       <a href="https://nextjs.org/" aria-label="Next.js">
@@ -69,19 +70,21 @@ EduBox is an intelligent student hub that organizes notes, schedules, assignment
 1. Clone the repo and open the project:
 
 ```powershell
-git clone https://github.com/ARYPROGRAMMER/EduBox.git ; cd EduBox
+git clone https://github.com/ARYPROGRAMMER/EduBox.git
+cd EduBox
 ```
 
 2. Install frontend dependencies (recommended: pnpm):
 
 ```powershell
-cd frontend ; pnpm install
+cd frontend
+pnpm install
 ```
 
 3. Copy environment example and add your keys:
 
 ```powershell
-cp .env.example .env.local
+cp env.example .env.local
 # edit .env.local with your Clerk and other keys
 ```
 
