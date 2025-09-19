@@ -60,14 +60,133 @@
 
 EduBox is an intelligent student hub that organizes notes, schedules, assignments, and campus life in one place. It uses AI to help with organization, planning, and finding what you need quickly.
 
-## ✨ Highlights
+## 🏗️ Architecture
 
-- AI-powered file organization and semantic search
-- Intelligent planner with reminders and calendar sync
-- Campus life hub: events, clubs, dining info
-- Built-in AI assistant for fast help and answers
-- Analytics dashboard to track study progress
-- Responsive UI with light/dark themes
+```mermaid
+graph TB
+    %% User Interface Layer
+    subgraph "User Interface"
+        UI[Next.js Frontend<br/>React + TypeScript + Tailwind]
+        DASH[Dashboard Components<br/>Planner, File Hub, Campus Life]
+        CHAT[AI Chat Interface<br/>CopilotKit]
+        SEARCH[Global Search<br/>Nuclia RAG]
+        IMPORT[Data Import/Export<br/>CSV, JSON, PDF]
+    end
+
+    %% Application Layer
+    subgraph "Application Logic"
+        CONVEX[Convex Functions<br/>Serverless Backend]
+        AUTH[Authentication<br/>Clerk]
+        BILLING[Billing & Feature Gates<br/>Schematic]
+        ANALYTICS[Usage Analytics<br/>Vercel Analytics]
+    end
+
+    %% Data Layer
+    subgraph "Data Storage"
+        DB[(Convex Database<br/>Real-time DB)]
+        FILES[File Storage<br/>Cloud Storage]
+        KB[(Nuclia Knowledge Base<br/>Document Processing)]
+    end
+
+    %% AI & ML Services
+    subgraph "AI Services"
+        GEMINI[Google Gemini<br/>LLM via AI SDK]
+        GROQ[Groq<br/>Fast Inference]
+        COPILOT[CopilotKit Runtime<br/>AI Actions & Chat]
+        NUCLIARAG[Nuclia RAG<br/>Retrieval-Augmented Generation]
+    end
+
+    %% Backend Services
+    subgraph "Backend Services"
+        SYNC[Nuclia Sync Service<br/>Node.js Backend<br/>Document Processing]
+        PDFPROCESS[PDF Processing<br/>Text Extraction]
+        SCHEDULEOPT[Schedule Optimization<br/>AI-powered Planning]
+    end
+
+    %% External Integrations (Planned)
+    subgraph "FUTURE SCOPE"
+        CALENDAR[Google Calendar<br/>Sync UI Ready]
+        YOUTUBE[YouTube API<br/>Video Integration UI Ready]
+        OUTLOOK[Microsoft Outlook<br/>Email & Calendar]
+        DRIVE[Google Drive<br/>File Sync]
+        ZOOM[Zoom<br/>Meeting Integration]
+    end
+
+    %% Connections
+    UI --> CONVEX
+    UI --> AUTH
+    UI --> BILLING
+    UI --> COPILOT
+    UI --> SEARCH
+    UI --> ANALYTICS
+    
+    CONVEX --> DB
+    CONVEX --> FILES
+    
+    CHAT --> COPILOT
+    COPILOT --> GEMINI
+    COPILOT --> GROQ
+    
+    SEARCH --> NUCLIARAG
+    NUCLIARAG --> KB
+    NUCLIARAG --> SYNC
+    
+    IMPORT --> PDFPROCESS
+    DASH --> SCHEDULEOPT
+
+    %% Planned connections (dashed)
+    DASH -.-> CALENDAR
+    DASH -.-> YOUTUBE
+    DASH -.-> OUTLOOK
+    DASH -.-> DRIVE
+    DASH -.-> ZOOM
+
+    %% Styling
+    classDef frontend fill:#e1f5fe
+    classDef backend fill:#f3e5f5
+    classDef data fill:#e8f5e8
+    classDef ai fill:#fff3e0
+    classDef external fill:#fafafa
+    classDef planned fill:#ffebee
+    
+    class UI,DASH,CHAT,SEARCH,IMPORT frontend
+    class CONVEX,AUTH,BILLING,ANALYTICS backend
+    class DB,FILES,KB data
+    class GEMINI,GROQ,COPILOT,NUCLIARAG ai
+    class SYNC,PDFPROCESS,SCHEDULEOPT external
+    class CALENDAR,YOUTUBE,OUTLOOK,DRIVE,ZOOM planned
+```
+
+### Architecture Overview
+
+**Frontend Layer:**
+- **Next.js 15** with App Router for modern React development
+- **TypeScript** for type safety and better DX
+- **Tailwind CSS + Shadcn/ui** for responsive, accessible UI
+- **Component Architecture:** Modular components for dashboard, chat, file management, data import/export
+
+**Backend Layer:**
+- **Convex** for real-time database and serverless functions
+- **Custom Nuclia Sync Service** for document processing and RAG
+- **Clerk** for authentication and user management
+- **Schematic** for billing and feature gating
+
+**AI & ML Layer:**
+- **CopilotKit** for AI chat interface and actions
+- **Google Gemini & Groq** for large language model inference via Vercel AI SDK
+- **Nuclia RAG** for retrieval-augmented generation and semantic search
+
+**Data Processing:**
+- **PDF Processing** for text extraction from uploaded documents
+- **Schedule Optimization** using AI for intelligent planning
+- **Data Import/Export** supporting multiple formats (CSV, JSON, PDF)
+
+**Planned Integrations:**
+- **Google Calendar** - Schedule synchronization (UI components ready)
+- **YouTube API** - Video content integration (API key configured)
+- **Microsoft Outlook** - Email and calendar integration
+- **Google Drive** - File synchronization
+- **Zoom** - Meeting scheduling and integration
 
 ---
 
