@@ -14,6 +14,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConvexUser } from "@/hooks/use-convex-user";
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface OptimizedScheduleItem {
   id: string;
@@ -41,7 +42,7 @@ interface ScheduleEnhancerModalProps {
   events: any[];
   tasks: any[];
   studySessions: any[];
-  onOptimizeSchedule?: (optimizedSchedule: OptimizedScheduleData) => void;
+  onOptimizeSchedule?: (optimizedSchedule: OptimizedScheduleData, scheduleId: Id<"optimizedSchedules">) => void;
 }
 
 export function ScheduleEnhancerModal({
@@ -147,7 +148,7 @@ export function ScheduleEnhancerModal({
         );
 
         // Save the optimized schedule
-        await saveOptimizedSchedule({
+        const savedScheduleId = await saveOptimizedSchedule({
           userId: convexUser.clerkId,
           name: `Optimized Schedule - ${new Date().toLocaleDateString()}`,
           description: "AI-optimized schedule for better productivity",
@@ -162,11 +163,8 @@ export function ScheduleEnhancerModal({
         });
 
         if (onOptimizeSchedule) {
-          onOptimizeSchedule(optimizedSchedule);
+          onOptimizeSchedule(optimizedSchedule, savedScheduleId);
         }
-
-        setIsOptimizing(false);
-        onOpenChange(false);
 
         return {
           success: true,
@@ -190,6 +188,14 @@ export function ScheduleEnhancerModal({
 
     setIsOptimizing(true);
     try {
+      console.log("Starting schedule optimization with data:", {
+        schedule,
+        assignments: assignments?.length,
+        events: events?.length,
+        tasks: tasks?.length,
+        studySessions: studySessions?.length,
+      });
+
       // Use CopilotKit's AI to optimize the schedule directly
       const optimizedSchedule = await optimizeScheduleWithAI(
         schedule,
@@ -199,8 +205,9 @@ export function ScheduleEnhancerModal({
         studySessions
       );
 
+
       // Save the optimized schedule
-      await saveOptimizedSchedule({
+      const savedScheduleId = await saveOptimizedSchedule({
         userId: convexUser.clerkId,
         name: `Optimized Schedule - ${new Date().toLocaleDateString()}`,
         description: "AI-optimized schedule for better productivity",
@@ -214,14 +221,20 @@ export function ScheduleEnhancerModal({
         optimizationScore: 90, // Higher score for AI optimization
       });
 
+
       if (onOptimizeSchedule) {
-        onOptimizeSchedule(optimizedSchedule);
+        onOptimizeSchedule(optimizedSchedule, savedScheduleId);
       }
 
       toast.success("Schedule optimized and saved successfully!");
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to optimize schedule. Please try again.");
+      console.error("Error during schedule optimization:", error);
+      toast.error(
+        error instanceof Error
+          ? `Optimization failed: ${error.message}`
+          : "Failed to optimize schedule. Please try again."
+      );
     } finally {
       setIsOptimizing(false);
     }
@@ -285,30 +298,39 @@ async function optimizeScheduleWithAI(
   tasks: any[],
   studySessions: any[]
 ): Promise<OptimizedScheduleData> {
-  // Make API call to our schedule optimization endpoint
-  const response = await fetch("/api/schedule-optimize", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      schedule,
-      assignments,
-      events,
-      tasks,
-      studySessions,
-    }),
-  });
+  try {
 
-  if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ error: "Unknown error" }));
-    throw new Error(
-      `AI optimization failed: ${errorData.error || response.statusText}`
-    );
+    const response = await fetch("/api/schedule-optimize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        schedule,
+        assignments,
+        events,
+        tasks,
+        studySessions,
+      }),
+    });
+
+    console.log("API response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      console.error("API error response:", errorData);
+      throw new Error(
+        `AI optimization failed: ${errorData.error || response.statusText}`
+      );
+    }
+
+    const optimizedSchedule = await response.json();
+    console.log("Received optimized schedule from API:", optimizedSchedule);
+    return optimizedSchedule;
+  } catch (error) {
+    console.error("Error in optimizeScheduleWithAI:", error);
+    throw error;
   }
-
-  const optimizedSchedule = await response.json();
-  return optimizedSchedule;
 }

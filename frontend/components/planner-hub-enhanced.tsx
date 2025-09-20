@@ -3006,10 +3006,29 @@ export function PlannerHubEnhanced() {
         events={calendarEvents || []}
         tasks={[]} // TODO: pass tasks if available
         studySessions={studySessions || []}
-        onOptimizeSchedule={(optimizedSchedule) => {
-          // TODO: Implement schedule update logic
-          console.log("Optimized schedule:", optimizedSchedule);
-          // For now, just show success message
+        onOptimizeSchedule={async (optimizedSchedule, scheduleId) => {
+          try {
+            console.log("Applying optimized schedule:", optimizedSchedule, "with ID:", scheduleId);
+
+            if (convexUser && scheduleId) {
+              const result = await applyOptimizedSchedule({
+                scheduleId: scheduleId,
+              });
+
+              console.log("Applied optimized schedule result:", result);
+
+              sonnerToast.success("Optimized schedule applied successfully!");
+
+              // Close the modal
+              setShowEnhancerModal(false);
+            } else {
+              console.error("Missing convexUser or scheduleId:", { convexUser, scheduleId });
+              sonnerToast.error("Failed to apply optimized schedule. Missing user or schedule data.");
+            }
+          } catch (error) {
+            console.error("Failed to apply optimized schedule:", error);
+            sonnerToast.error("Failed to apply optimized schedule. Please try again.");
+          }
         }}
       />
       <CourseDialog
