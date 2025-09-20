@@ -47,6 +47,7 @@ import {
 } from "recharts";
 import MobileGate from "@/components/mobile-gate";
 import { DashboardHeader } from "@/components/dashboard-header";
+import AnalyticsPDFExport from "@/components/analytics-pdf-export";
 
 // Main component wrapped in React.memo with proper dependency tracking
 const AnalyticsPage = React.memo(() => {
@@ -443,6 +444,12 @@ const AnalyticsPage = React.memo(() => {
   return (
     <div className="space-y-6">
       <DashboardHeader mounted />
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Analytics</h2>
+        <p className="text-muted-foreground">
+          Track your academic performance and study patterns
+        </p>
+      </div>
       {/* Reminders Panel - high visibility */}
       <div>
         <Card>
@@ -574,13 +581,6 @@ const AnalyticsPage = React.memo(() => {
         </Card>
       </div>
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Analytics</h2>
-          <p className="text-muted-foreground">
-            Track your academic performance and study patterns
-          </p>
-        </div>
-
         <div className="flex gap-2">
           {["7", "30", "90"].map((period) => (
             <Button
@@ -656,245 +656,265 @@ const AnalyticsPage = React.memo(() => {
       </div>
 
       {/* Detailed Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Assignment Status</CardTitle>
-            <CardDescription>Distribution of assignment states</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-56 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={assignmentStatusPie}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={70}
-                    label
+      <AnalyticsPDFExport>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Assignment Status</CardTitle>
+              <CardDescription>
+                Distribution of assignment states
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={assignmentStatusPie}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={70}
+                      label
+                    >
+                      {assignmentStatusPie.map((entry: any, idx: number) => (
+                        <Cell key={`cell-${idx}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Study Hours</CardTitle>
+              <CardDescription>
+                Hours studied per day (last 7 days)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={weeklyStudy}
+                    margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
                   >
-                    {assignmentStatusPie.map((entry: any, idx: number) => (
-                      <Cell key={`cell-${idx}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="hours" name="Hours" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly Study Hours</CardTitle>
-            <CardDescription>
-              Hours studied per day (last 7 days)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={weeklyStudy}
-                  margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="hours" name="Hours" fill="#82ca9d" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Session Stats</CardTitle>
-            <CardDescription>Streak and averages</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Total Sessions
+          <Card>
+            <CardHeader>
+              <CardTitle>Session Stats</CardTitle>
+              <CardDescription>Streak and averages</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Sessions
+                  </div>
+                  <div className="text-xl font-bold">
+                    {sessionStats.totalSessions}
+                  </div>
                 </div>
-                <div className="text-xl font-bold">
-                  {sessionStats.totalSessions}
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    Avg Session (min)
+                  </div>
+                  <div className="text-xl font-bold">
+                    {sessionStats.avgDuration}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    Current Streak (days)
+                  </div>
+                  <div className="text-xl font-bold">{sessionStats.streak}</div>
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Avg Session (min)
-                </div>
-                <div className="text-xl font-bold">
-                  {sessionStats.avgDuration}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Current Streak (days)
-                </div>
-                <div className="text-xl font-bold">{sessionStats.streak}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Study Hours & Focus</CardTitle>
-            <CardDescription>
-              Daily study hours (area) and average focus score (line)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={studiesByDay}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorStudy" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
-                  <YAxis yAxisId="left" unit="h" />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    domain={[0, 100]}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="studyHours"
-                    name="Study Hours"
-                    stroke="#82ca9d"
-                    fillOpacity={1}
-                    fill="url(#colorStudy)"
-                    yAxisId="left"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="avgFocus"
-                    name="Avg Focus"
-                    stroke="#8884d8"
-                    yAxisId="right"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Assignments Submitted</CardTitle>
-            <CardDescription>Assignments submitted by day</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={assignmentsByDay}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar
-                    dataKey="submissions"
-                    name="Submissions"
-                    fill="#8884d8"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Course Average Grades</CardTitle>
-            <CardDescription>Average grade per course</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={courseAverages}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Bar dataKey="avgGrade" name="Avg Grade">
-                    {courseAverages.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Study Sessions Breakdown</CardTitle>
-            <CardDescription>Distribution of session durations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={studiesByDay.slice(-8).map((d) => ({
-                      name: d.date.slice(5),
-                      value: d.studyHours,
-                    }))}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={80}
-                    fill="#8884d8"
-                    label
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Study Hours & Focus</CardTitle>
+              <CardDescription>
+                Daily study hours (area) and average focus score (line)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={studiesByDay}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                   >
-                    {studiesByDay.slice(-8).map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={
-                          [
-                            "#8884d8",
-                            "#82ca9d",
-                            "#ffc658",
-                            "#ff7300",
-                            "#00c2ff",
-                          ][index % 5]
-                        }
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    <defs>
+                      <linearGradient
+                        id="colorStudy"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#82ca9d"
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#82ca9d"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
+                    <YAxis yAxisId="left" unit="h" />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 100]}
+                    />
+                    <Tooltip />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="studyHours"
+                      name="Study Hours"
+                      stroke="#82ca9d"
+                      fillOpacity={1}
+                      fill="url(#colorStudy)"
+                      yAxisId="left"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avgFocus"
+                      name="Avg Focus"
+                      stroke="#8884d8"
+                      yAxisId="right"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assignments Submitted</CardTitle>
+              <CardDescription>Assignments submitted by day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={assignmentsByDay}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar
+                      dataKey="submissions"
+                      name="Submissions"
+                      fill="#8884d8"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Course Average Grades</CardTitle>
+              <CardDescription>Average grade per course</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={courseAverages}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Bar dataKey="avgGrade" name="Avg Grade">
+                      {courseAverages.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Study Sessions Breakdown</CardTitle>
+              <CardDescription>
+                Distribution of session durations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie
+                      data={studiesByDay.slice(-8).map((d) => ({
+                        name: d.date.slice(5),
+                        value: d.studyHours,
+                      }))}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      label
+                    >
+                      {studiesByDay.slice(-8).map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={
+                            [
+                              "#8884d8",
+                              "#82ca9d",
+                              "#ffc658",
+                              "#ff7300",
+                              "#00c2ff",
+                            ][index % 5]
+                          }
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AnalyticsPDFExport>
     </div>
   );
 });

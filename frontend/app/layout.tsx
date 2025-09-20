@@ -2,6 +2,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Comfortaa } from "next/font/google";
 import "./globals.css";
+import "@progress/kendo-theme-default/dist/all.css";
 import ClientWrapper from "@/components/ClientWrapper";
 import { Toaster } from "sonner";
 import { Suspense } from "react";
