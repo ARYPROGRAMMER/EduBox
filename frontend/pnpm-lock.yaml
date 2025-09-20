@@ -50,6 +50,9 @@ importers:
       '@progress/kendo-react-progressbars':
         specifier: ^12.0.2
         version: 12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-animation@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react-transition-group@4.4.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@progress/kendo-react-ripple':
+        specifier: ^12.0.2
+        version: 12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-ripple@1.0.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@progress/kendo-react-scrollview':
         specifier: ^12.0.2
         version: 12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-react-intl@12.0.2(@progress/kendo-intl@3.1.2)(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -1845,6 +1848,15 @@ packages:
       react: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
+  '@progress/kendo-react-ripple@12.0.2':
+    resolution: {integrity: sha512-cRoDr3HptAk5LfesyN5t8DroSg+baPKSj0Oz15lF3TTfaEF5vfVCYRJ9G7GS/Ymrklc1sZMUJySMUphDgxFy7g==}
+    peerDependencies:
+      '@progress/kendo-licensing': ^1.7.0
+      '@progress/kendo-react-common': 12.0.2
+      '@progress/kendo-ripple': ^1.0.1
+      react: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
   '@progress/kendo-react-scrollview@12.0.2':
     resolution: {integrity: sha512-nNiUck2OrUiSEkfqNAu1/PpQOy4ZxLV/tlkyLidlTdf9aB0NOSk5+jmlRFtl4qRRFJjhWW9tdadiWk6IeH/9Eg==}
     peerDependencies:
@@ -1897,6 +1909,9 @@ packages:
       axios: ^1.7.4
       react: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.8.2 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
+  '@progress/kendo-ripple@1.0.2':
+    resolution: {integrity: sha512-P50uvRJntu6+iE6uno7usXcA09maA7xEJEUEVpvd/gJf/0Q1Yq0nDhmnTJiAmylvS53lYUftOyF8869B6H7/zA==}
 
   '@progress/kendo-svg-icons@4.5.0':
     resolution: {integrity: sha512-KO7KZNrm1Fi8jR4HLvaPmwzzsvswAZUlm6jQ0jHz9ck/iuREo8YWIUaVQxnzcmtCT3nRyrYMofLa13eR4PEhQg==}
@@ -8771,6 +8786,15 @@ snapshots:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
 
+  '@progress/kendo-react-ripple@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-ripple@1.0.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      '@progress/kendo-licensing': 1.7.1
+      '@progress/kendo-react-common': 12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@progress/kendo-ripple': 1.0.2
+      prop-types: 15.8.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+
   '@progress/kendo-react-scrollview@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-react-intl@12.0.2(@progress/kendo-intl@3.1.2)(@progress/kendo-licensing@1.7.1)(@progress/kendo-react-common@12.0.2(@progress/kendo-licensing@1.7.1)(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@progress/kendo-svg-icons@4.5.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@progress/kendo-licensing': 1.7.1
@@ -8823,6 +8847,10 @@ snapshots:
       prop-types: 15.8.1
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
+
+  '@progress/kendo-ripple@1.0.2':
+    dependencies:
+      tslib: 1.14.1
 
   '@progress/kendo-svg-icons@4.5.0': {}
 

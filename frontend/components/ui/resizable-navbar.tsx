@@ -7,6 +7,7 @@ import {
   useScroll,
   useMotionValueEvent,
 } from "motion/react";
+import { Ripple } from "@progress/kendo-react-ripple";
 
 import React, { useRef, useState } from "react";
 
@@ -86,7 +87,7 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
   return (
     <motion.div
       animate={{
-        backdropFilter:  "none",
+        backdropFilter: "none",
         boxShadow: visible
           ? "0 0 24px rgba(34, 42, 53, 0.06), 0 1px 1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(34, 42, 53, 0.04), 0 0 4px rgba(34, 42, 53, 0.08), 0 16px 68px rgba(47, 48, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.1) inset"
           : "none",
@@ -225,20 +226,21 @@ export const MobileNavToggle = ({
   onClick: () => void;
 }) => {
   return (
-    <button
-      onClick={onClick}
-      className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-neutral-800/50 transition-all duration-200"
-      aria-label="Toggle mobile menu"
-    >
-      {isOpen ? (
-        <IconX className="text-black dark:text-white h-6 w-6" />
-      ) : (
-        <IconMenu2 className="text-black dark:text-white h-6 w-6" />
-      )}
-    </button>
+    <Ripple>
+      <button
+        onClick={onClick}
+        className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-neutral-800/50 transition-all duration-200"
+        aria-label="Toggle mobile menu"
+      >
+        {isOpen ? (
+          <IconX className="text-black dark:text-white h-6 w-6" />
+        ) : (
+          <IconMenu2 className="text-black dark:text-white h-6 w-6" />
+        )}
+      </button>
+    </Ripple>
   );
 };
-
 export const NavbarLogo = () => {
   return (
     <a
@@ -286,12 +288,14 @@ export const NavbarButton = ({
   };
 
   return (
-    <Tag
-      href={href || undefined}
-      className={cn(baseStyles, variantStyles[variant], className)}
-      {...props}
-    >
-      {children}
-    </Tag>
+    <Ripple>
+      <Tag
+        href={href || undefined}
+        className={cn(baseStyles, variantStyles[variant], className)}
+        {...props}
+      >
+        {children}
+      </Tag>
+    </Ripple>
   );
 };
