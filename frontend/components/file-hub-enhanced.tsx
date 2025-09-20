@@ -37,6 +37,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Upload as KendoUpload } from "@progress/kendo-react-upload";
+import { ProgressBar } from "@progress/kendo-react-progressbars";
 import {
   Upload,
   FileText,
@@ -81,7 +83,6 @@ export function FileHubEnhanced() {
     checkAccess,
   } = useFeatureGate(FeatureFlag.FILE_MANAGEMENT);
   const [mounted, setMounted] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { executeWithLoading } = useAsyncOperation();
@@ -91,7 +92,6 @@ export function FileHubEnhanced() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Convex hooks
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
@@ -148,28 +148,8 @@ export function FileHubEnhanced() {
     { value: "study-materials", label: "Study Materials" },
   ];
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(e.dataTransfer.files);
-    }
-  };
-
-  const handleFiles = async (fileList: FileList) => {
-    if (fileList.length === 0 || !userId) return;
+  const handleFileAdd = async (event: any) => {
+    if (!userId) return;
 
     // Check feature access before uploading
     if (!canManageFiles) {
@@ -191,28 +171,24 @@ export function FileHubEnhanced() {
     setUploadProgress(0);
 
     try {
-      for (let i = 0; i < fileList.length; i++) {
-        const file = fileList[i];
+      // Process files sequentially to show proper progress
+      for (let i = 0; i < event.newState.length; i++) {
+        const file = event.newState[i];
 
         // Generate upload URL
         const uploadUrl = await generateUploadUrl();
 
-        // Simulate upload progress
-        for (let progress = 0; progress <= 80; progress += 20) {
-          setUploadProgress(progress);
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+        // Update progress for current file
+        setUploadProgress(Math.round(((i) / event.newState.length) * 100));
 
         // Upload file to Convex storage
         const response = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
+          headers: { "Content-Type": file.getRawFile().type },
+          body: file.getRawFile(),
         });
 
         const { storageId } = await response.json();
-
-        setUploadProgress(90);
 
         // Store file metadata
         await storeFile({
@@ -220,20 +196,61 @@ export function FileHubEnhanced() {
           fileName: file.name,
           originalName: file.name,
           fileSize: file.size,
-          mimeType: file.type,
+          mimeType: file.getRawFile().type,
           category: "other",
           userId,
         });
 
-        setUploadProgress(100);
+        // Update progress after each file
+        setUploadProgress(Math.round(((i + 1) / event.newState.length) * 100));
       }
 
-      setShowUploadModal(false);
+      // Show completion
+      setUploadProgress(100);
+      toast.success("Files uploaded successfully!");
+
+      // Close modal after a short delay
+      setTimeout(() => {
+        setShowUploadModal(false);
+      }, 1500);
+
     } catch (error) {
       console.error("Error uploading files:", error);
+      toast.error("Failed to upload files. Please try again.");
     } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 2000);
+    }
+  };
+
+  const handleFileRemove = (event: any) => {
+    // Handle file removal if needed
+    console.log("File removed:", event);
+  };
+
+  const handleUploadProgress = (event: any) => {
+    // Update progress based on Kendo's progress event
+    if (event.newState && event.newState.length > 0) {
+      const totalProgress = event.newState.reduce((acc: number, file: any) => {
+        return acc + (file.progress || 0);
+      }, 0) / event.newState.length;
+      setUploadProgress(Math.round(totalProgress));
+    }
+  };
+
+  const handleUploadStatusChange = (event: any) => {
+    // Handle status changes (upload complete, failed, etc.)
+    console.log("Upload status changed:", event);
+
+    // If all files are uploaded successfully, close modal
+    if (event.newState && event.newState.every((file: any) => file.status === 4)) {
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 1000); // Small delay to show 100% completion
     }
   };
 
@@ -375,54 +392,59 @@ export function FileHubEnhanced() {
                   Drag and drop files here or click to browse
                 </DialogDescription>
               </DialogHeader>
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:border-gray-400"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                {isUploading ? (
-                  <div className="space-y-4">
-                    <Upload className="w-12 h-12 mx-auto text-blue-500 animate-pulse" />
-                    <div>
-                      <p className="font-medium">Uploading files...</p>
-                      <Progress value={uploadProgress} className="mt-2" />
+              <div className="space-y-4">
+                {isUploading && (
+                  <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          Uploading files...
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          {Math.round(uploadProgress)}% complete
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-lg font-medium mb-2">
-                      Drop files here or click to upload
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Support for academic files: PDFs, presentations, images,
-                      videos, and documents
-                    </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          handleFiles(e.target.files);
-                        }
+                    <ProgressBar
+                      value={uploadProgress}
+                      label={(props) => `${Math.round(props.value || 0)}%`}
+                      progressStyle={{
+                        background: 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)',
+                        borderRadius: '4px'
                       }}
+                      style={{
+                        height: '10px',
+                        borderRadius: '5px',
+                        backgroundColor: '#f3f4f6'
+                      }}
+                      className="k-progressbar-custom"
+                      animation={true}
                     />
-                    <Button
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Choose Files
-                    </Button>
-                  </>
+                  </div>
                 )}
+                <KendoUpload
+                  batch={false}
+                  multiple={true}
+                  defaultFiles={[]}
+                  withCredentials={false}
+                  autoUpload={false}
+                  saveHeaders={{
+                    'Content-Type': 'application/json'
+                  }}
+                  onAdd={handleFileAdd}
+                  onRemove={handleFileRemove}
+                  onProgress={handleUploadProgress}
+                  onStatusChange={handleUploadStatusChange}
+                  restrictions={{
+                    allowedExtensions: ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png', '.gif', '.mp4', '.avi', '.mov', '.zip', '.rar']
+                  }}
+                  className="k-upload-custom"
+                />
+                <p className="text-sm text-muted-foreground text-center">
+                  Support for academic files: PDFs, presentations, images,
+                  videos, and documents
+                </p>
               </div>
             </DialogContent>
           </Dialog>
