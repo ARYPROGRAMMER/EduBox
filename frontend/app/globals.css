@@ -370,3 +370,87 @@ html {
 .dark .k-upload-custom .k-button:hover {
   background-color: #4b5563;
 }
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Kendo ScrollView Dark Theme Support */
+.dark .k-scrollview {
+  background-color: transparent;
+  color: rgb(243 244 246);
+}
+
+.dark .k-scrollview .k-button {
+  background-color: rgba(55, 65, 81, 0.8);
+  color: rgb(243 244 246);
+  border-color: rgba(75, 85, 99, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.dark .k-scrollview .k-button:hover {
+  background-color: rgba(75, 85, 99, 0.9);
+  border-color: rgba(107, 114, 128, 0.7);
+}
+
+.dark .k-scrollview .k-button.k-state-active {
+  background-color: rgba(59, 130, 246, 0.8);
+  border-color: rgb(59 130 246);
+}
+
+.dark .k-scrollview-nav {
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.dark .k-scrollview-nav .k-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgb(243 244 246);
+}
+
+.dark .k-scrollview-nav .k-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Light theme support */
+.k-scrollview {
+  background-color: transparent;
+}
+
+.k-scrollview .k-button {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: rgb(17 24 39);
+  border-color: rgba(229, 231, 235, 0.5);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.k-scrollview .k-button:hover {
+  background-color: rgba(255, 255, 255, 1);
+  border-color: rgba(156, 163, 175, 0.7);
+}
+
+.k-scrollview .k-button.k-state-active {
+  background-color: rgba(59, 130, 246, 0.9);
+  border-color: rgb(59 130 246);
+  color: white;
+}
+
+.k-scrollview-nav {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.k-scrollview-nav .k-button {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: rgb(17 24 39);
+}
+
+.k-scrollview-nav .k-button:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}

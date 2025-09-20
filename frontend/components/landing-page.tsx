@@ -18,6 +18,7 @@ import YoutubeVideoForm from "./input-form-main";
 import { PointerHighlight } from "./ui/pointer-highlight";
 import { useEffect, useRef } from "react";
 import { startDroplets } from "@/interactive-droplets/src/scripts";
+import { ScreenshotScrollView } from "./screenshot-scrollview";
 
 export function LandingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -223,6 +224,19 @@ export function LandingPage() {
             >
               <BentoDemo />
             </motion.div>
+          </div>
+        </motion.section>
+
+        <motion.section
+          id="screenshots"
+          className="py-24 sm:py-32"
+          initial={{ opacity: 0, y: 60 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto px-4">
+            <ScreenshotScrollView />
           </div>
         </motion.section>
 
