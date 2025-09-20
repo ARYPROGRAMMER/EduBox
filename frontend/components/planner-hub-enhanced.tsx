@@ -56,6 +56,10 @@ import {
   Trash2,
   CheckCircle,
 } from "lucide-react";
+import {
+  TaskBoard,
+  TaskBoardChangeEvent,
+} from "@progress/kendo-react-taskboard";
 import { CourseCreationDialog } from "@/components/dialogs/course-creation-dialog";
 import { AssignmentCreationDialog } from "@/components/dialogs/assignment-creation-dialog";
 import { StudySessionTimer } from "@/components/dialogs/study-session-timer";
@@ -147,6 +151,14 @@ export function PlannerHubEnhanced() {
       [convexUser?.clerkId]
     )
   );
+
+  const [optimisticAssignments, setOptimisticAssignments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (allAssignments) {
+      setOptimisticAssignments(allAssignments);
+    }
+  }, [allAssignments]);
   const courses = useQuery(
     api.courses.getCourses,
     useMemo(
@@ -232,6 +244,55 @@ export function PlannerHubEnhanced() {
     } catch (e) {
       // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        const container = document.querySelector(
+          "[data-taskboard-container]"
+        ) as HTMLElement;
+        if (container) {
+          container.focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .k-taskboard .k-taskboard-content {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
+      .k-taskboard .k-taskboard-column {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
+      .k-taskboard .k-taskboard-card {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
+      .k-taskboard.dragging {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   // Safe date formatting function to prevent hydration issues
@@ -657,14 +718,11 @@ export function PlannerHubEnhanced() {
     if (!convexUser) return;
     try {
       await deleteAssignment({
-        assignmentId: assignment._id,
+        assignmentId: assignment._id as Id<"assignments">,
         userId: convexUser.clerkId,
       });
       sonnerToast.success("Assignment deleted");
       setSelectedAssignment(null);
-      try {
-        router.refresh();
-      } catch (e) {}
     } catch (e) {
       sonnerToast.error("Failed to delete assignment");
     }
@@ -717,9 +775,6 @@ export function PlannerHubEnhanced() {
 
       sonnerToast.success("Assignment updated");
       setSelectedAssignment(null);
-      try {
-        router.refresh();
-      } catch (e) {}
     } catch (e) {
       sonnerToast.error("Failed to update assignment");
     }
@@ -735,9 +790,6 @@ export function PlannerHubEnhanced() {
       });
       sonnerToast.success("Assignment saved");
       setSelectedAssignment(null);
-      try {
-        router.refresh();
-      } catch (e) {}
     } catch (e) {
       console.error("Failed to save assignment", e);
       sonnerToast.error("Failed to save assignment");
@@ -798,10 +850,6 @@ export function PlannerHubEnhanced() {
       }
 
       sonnerToast.success("Study session completed");
-      // Wait a bit for the mutation to propagate, then refresh
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
     } catch (e) {
       sonnerToast.error("Failed to complete session");
       console.error("Error completing session:", e);
@@ -1545,104 +1593,14 @@ export function PlannerHubEnhanced() {
                 )}
               </CardContent>
             </Card>
-          </div>
 
-          {/* Tasks & Upcoming Events */}
-          <div className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-            {/* Upcoming Events */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Upcoming Events</CardTitle>
-                <CardDescription>Your next important dates</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {upcomingEvents.map((event: any) => (
-                  <div
-                    key={event._id || event.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border"
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
-                        event.priority
-                      )}`}
-                    >
-                      {getEventTypeIcon(event.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{event.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {mounted
-                          ? new Date(event.startTime).toLocaleString()
-                          : ""}
-                        {event.duration ? ` • ${event.duration} min` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={
-                          followedItems.includes(`event:${event._id}`)
-                            ? "default"
-                            : "outline"
-                        }
-                        onClick={() => toggleFollow(`event:${event._id}`)}
-                      >
-                        {followedItems.includes(`event:${event._id}`)
-                          ? "Following"
-                          : "Follow"}
-                      </Button>
-                    </div>
-                    {event.type === "study" && (
-                      <div className="flex items-center gap-2">
-                        <StudySessionTimer editSessionId={event._id}>
-                          <button className="btn btn-xs border">Edit</button>
-                        </StudySessionTimer>
-                        <button
-                          className="btn btn-xs text-red-600"
-                          onClick={async () => {
-                            try {
-                              if (event.isStudySession) {
-                                await deleteStudySession({
-                                  sessionId: event._id,
-                                });
-                              } else {
-                                // Ensure convexUser is present so userId is a string (Convex API requires string)
-                                if (!convexUser) {
-                                  console.warn(
-                                    "Unable to delete event: no convex user available"
-                                  );
-                                  return;
-                                }
-                                await deleteEvent({
-                                  eventId: event._id,
-                                  userId: convexUser.clerkId,
-                                });
-                              }
-                            } catch (e) {
-                              console.error(
-                                "Failed to delete upcoming event/session",
-                                e
-                              );
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Task Management */}
-            <Card>
+            <Card className="mt-6">
               <CardHeader>
                 <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                   <div>
-                    <CardTitle className="text-lg">Task Management</CardTitle>
+                    <CardTitle className="text-xl">Task Management</CardTitle>
                     <CardDescription>
-                      Track your assignments and todos
+                      Track your assignments and todos with drag-and-drop
                     </CardDescription>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -1733,12 +1691,6 @@ export function PlannerHubEnhanced() {
                                   setTaskPriority("medium");
                                   setTaskDueDate("");
                                   setShowTaskModal(false);
-                                  // Best-effort refresh to ensure lists update
-                                  try {
-                                    router.refresh();
-                                  } catch (e) {
-                                    /* ignore */
-                                  }
                                 } catch (e) {
                                   console.error("Failed to create task", e);
                                   sonnerToast.error("Failed to create task.");
@@ -1772,260 +1724,629 @@ export function PlannerHubEnhanced() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="upcoming" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="upcoming">Upcoming Tasks</TabsTrigger>
-                    <TabsTrigger value="history">Task History</TabsTrigger>
-                  </TabsList>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span>Progress</span>
+                    <span>
+                      {completedAssignments.length}/{assignments.length}{" "}
+                      completed
+                    </span>
+                  </div>
+                  <Progress
+                    value={
+                      (completedAssignments.length / assignments.length) *
+                        100 || 0
+                    }
+                    className="h-2"
+                  />
+                </div>
 
-                  <TabsContent value="upcoming" className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress</span>
-                      <span>
-                        {completedAssignments.length}/{assignments.length}{" "}
-                        completed
-                      </span>
-                    </div>
-                    <Progress
-                      value={
-                        (completedAssignments.length / assignments.length) *
-                          100 || 0
+                {(() => {
+                  // Define assignments and completedAssignments from optimistic state
+                  const assignments = optimisticAssignments || [];
+                  const completedAssignments = assignments.filter(
+                    (a: any) => a.status === "completed"
+                  );
+
+                  if (allAssignments === undefined || courses === undefined) {
+                    return (
+                      <div className="bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-xl p-6 shadow-xl border border-slate-200/50 dark:border-slate-700/50">
+                        <div className="flex items-center justify-center h-64">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm text-muted-foreground">
+                              Loading your tasks...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const columnData = [
+                    {
+                      id: 1,
+                      title: "To Do",
+                      status: "pending",
+                      color: "#64748b",
+                    },
+                    {
+                      id: 2,
+                      title: "In Progress",
+                      status: "in-progress",
+                      color: "#f59e0b",
+                    },
+                    {
+                      id: 3,
+                      title: "Done",
+                      status: "completed",
+                      color: "#10b981",
+                    },
+                    {
+                      id: 4,
+                      title: "Overdue",
+                      status: "overdue",
+                      color: "#ef4444",
+                    },
+                  ];
+
+                  const cardData =
+                    assignments?.map((assignment: any) => ({
+                      id: assignment._id,
+                      title: assignment.title,
+                      description: assignment.description || "",
+                      status: assignment.status,
+                      priority: assignment.priority,
+                      dueDate: assignment.dueDate,
+                      courseId: assignment.courseId,
+                      courseName: assignment.courseId
+                        ? courses?.find(
+                            (c: any) => c._id === assignment.courseId
+                          )?.courseName
+                        : null,
+                    })) || [];
+
+                  interface TaskBoardTask {
+                    id: string | number | undefined;
+                    title: string;
+                    description: string;
+                    status: string;
+                    priority: string;
+                    dueDate?: string;
+                    courseId?: string;
+                    courseName?: string;
+                  }
+
+                  interface TaskBoardColumn {
+                    id: number;
+                    title: string;
+                    status: string;
+                    color: string;
+                  }
+
+                  const handleTaskBoardChange = async (
+                    event: TaskBoardChangeEvent
+                  ) => {
+                    console.log("TaskBoard change event:", event);
+
+                    if (!event || typeof event !== "object") {
+                      console.error("Invalid event object:", event);
+                      sonnerToast.error("Failed to move task", {
+                        description: "Invalid event data received.",
+                        duration: 5000,
+                      });
+                      return;
+                    }
+
+                    let card: TaskBoardTask | null = null;
+                    let column: TaskBoardColumn | null = null;
+                    let newStatus: string | null = null;
+
+                    if (
+                      event.type === "task" &&
+                      event.item &&
+                      !event.previousItem
+                    ) {
+                      console.log("Task creation event detected");
+
+                      sonnerToast.info(
+                        "Use the 'Add Task' button above to add new tasks",
+                        {
+                          description:
+                            "Click the button above the TaskBoard to create a new tasks/assignments.",
+                          duration: 4000,
+                        }
+                      );
+                      return;
+                    }
+
+                    if (
+                      event.type === "task" &&
+                      !event.item &&
+                      event.previousItem
+                    ) {
+                      console.log("Task deletion event detected");
+                      const deletedTask = event.previousItem as any;
+                      if (deletedTask && deletedTask.id) {
+                        try {
+                          await deleteAssignment({
+                            assignmentId: deletedTask.id as Id<"assignments">,
+                            userId: convexUser?.clerkId || "",
+                          });
+                          sonnerToast.success("Task deleted successfully", {
+                            description: `${deletedTask.title} has been removed.`,
+                            duration: 3000,
+                          });
+                          return;
+                        } catch (err) {
+                          console.error("Failed to delete task:", err);
+                          sonnerToast.error("Failed to delete task", {
+                            description:
+                              "Please try again or contact support if the issue persists.",
+                            duration: 5000,
+                          });
+                          return;
+                        }
                       }
-                      className="h-2"
-                    />
+                    }
 
-                    <div className="space-y-3 mt-4">
-                      {pendingAssignments.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          No upcoming tasks
-                        </div>
-                      ) : (
-                        pendingAssignments.map((assignment: any) => (
-                          <div
-                            key={assignment._id}
-                            className={`flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors`}
-                            onClick={() => setSelectedAssignment(assignment)}
-                          >
-                            {/* Mark complete button */}
-                            <button
-                              title="Mark as complete"
-                              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted/50"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  await markAssignment({
-                                    assignmentId: assignment._id,
-                                    userId: convexUser.clerkId,
-                                    updates: {
-                                      status: "completed",
-                                      submittedDate: Date.now(),
-                                    },
-                                  });
-                                  sonnerToast.success("Task completed!");
-                                } catch (err) {
-                                  console.error("Failed to complete task", err);
-                                  sonnerToast.error("Failed to complete task");
-                                }
-                              }}
-                            >
-                              <svg
-                                className="w-4 h-4 text-muted-foreground"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth="2"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            </button>
+                    // Check if this is a task selection event (task clicked but not moved)
+                    if (
+                      event.type === "task" &&
+                      event.item &&
+                      event.previousItem &&
+                      event.item.id === event.previousItem.id &&
+                      event.item.status === event.previousItem.status
+                    ) {
+                      // This is a task selection/click event
+                      console.log("Task selection event detected");
+                      const selectedTask = event.item as any;
+                      if (selectedTask && selectedTask.id) {
+                        // Find the full assignment object
+                        const assignment = assignments?.find(
+                          (a: any) => a._id === selectedTask.id
+                        );
+                        if (assignment) {
+                          setSelectedAssignment(assignment);
+                          sonnerToast.info(`Selected: ${assignment.title}`, {
+                            description: "Press Delete key to remove this task",
+                            duration: 2000,
+                          });
+                          return;
+                        }
+                      }
+                    }
 
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">
-                                {assignment.title}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Due: {formatDateString(assignment.dueDate)}
-                              </p>
-                            </div>
+                    // Check if this is a task change event
+                    if (
+                      event.type === "task" &&
+                      event.item &&
+                      event.previousItem &&
+                      typeof event.item === "object" &&
+                      "status" in event.item
+                    ) {
+                      // Task move event - item contains the moved task with updated status
+                      const kendoTask = event.item as any; // Use any to bypass strict typing for Kendo model
+                      card = {
+                        id: kendoTask.id,
+                        title: kendoTask.title,
+                        description: kendoTask.description || "",
+                        status: kendoTask.status,
+                        priority:
+                          typeof kendoTask.priority === "object"
+                            ? kendoTask.priority.priority
+                            : kendoTask.priority,
+                        dueDate: kendoTask.dueDate,
+                        courseId: kendoTask.courseId,
+                        courseName: kendoTask.courseName,
+                      };
+                      // Find the target column based on the card's new status
+                      const targetColumn = columnData.find(
+                        (col: TaskBoardColumn) => col.status === card!.status
+                      );
+                      if (targetColumn) {
+                        column = targetColumn;
+                        newStatus = targetColumn.status;
+                      }
+                    } else if (
+                      event.data &&
+                      Array.isArray(event.data) &&
+                      event.data.length > 0
+                    ) {
+                      // Fallback: use the first item from data array
+                      const firstItem = event.data[0];
+                      if (
+                        firstItem &&
+                        typeof firstItem === "object" &&
+                        "id" in firstItem &&
+                        "title" in firstItem &&
+                        "status" in firstItem
+                      ) {
+                        // Convert Kendo TaskBoardTaskModel to our TaskBoardTask interface
+                        const kendoTask = firstItem as any; // Use any to bypass strict typing for Kendo model
+                        card = {
+                          id: kendoTask.id,
+                          title: kendoTask.title,
+                          description: kendoTask.description || "",
+                          status: kendoTask.status,
+                          priority:
+                            typeof kendoTask.priority === "object"
+                              ? kendoTask.priority.priority
+                              : kendoTask.priority,
+                          dueDate: kendoTask.dueDate,
+                          courseId: kendoTask.courseId,
+                          courseName: kendoTask.courseName,
+                        };
+                        const targetColumn = columnData.find(
+                          (col: TaskBoardColumn) => col.status === card!.status
+                        );
+                        if (targetColumn) {
+                          column = targetColumn;
+                          newStatus = targetColumn.status;
+                        }
+                      }
+                    }
 
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className={getPriorityColor(
-                                  assignment.priority
-                                )}
-                              >
-                                {assignment.priority}
-                              </Badge>
+                    // Validate extracted data
+                    if (!card || !card.id || !card.title) {
+                      console.error("Invalid card object:", card);
+                      sonnerToast.error("Failed to move task", {
+                        description: "Invalid card data received.",
+                        duration: 5000,
+                      });
+                      return;
+                    }
 
-                              {/* Pin / Follow toggle for reminders */}
-                              <Button
-                                size="sm"
-                                variant={
-                                  followedItems.includes(
-                                    `assignment:${assignment._id}`
-                                  )
-                                    ? "default"
-                                    : "outline"
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFollow(`assignment:${assignment._id}`);
-                                }}
-                              >
-                                {followedItems.includes(
-                                  `assignment:${assignment._id}`
-                                )
-                                  ? "Pinned"
-                                  : "Pin"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  setEditingAssignment(assignment);
-                                  setShowTaskModal(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    if (!convexUser) {
-                                      sonnerToast.error(
-                                        "You must be logged in to delete assignments."
-                                      );
-                                      return;
-                                    }
-                                    await deleteAssignmentMutation({
-                                      assignmentId: assignment._id,
-                                      userId: convexUser.clerkId,
-                                    });
-                                    sonnerToast.success("Assignment deleted");
-                                    try {
-                                      router.refresh();
-                                    } catch (e) {}
-                                  } catch (err) {
-                                    console.error(
-                                      "delete assignment failed",
-                                      err
-                                    );
-                                    sonnerToast.error(
-                                      "Failed to delete assignment"
-                                    );
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                    if (!column || !column.title || !newStatus) {
+                      console.error(
+                        "Invalid column object or status:",
+                        column,
+                        newStatus
+                      );
+                      sonnerToast.error("Failed to move task", {
+                        description: "Invalid column data received.",
+                        duration: 5000,
+                      });
+                      return;
+                    }
+
+                    try {
+                      // Process task movement in background without loading state
+                      // Get the previous status from previousItem if available
+                      const previousStatus =
+                        event.previousItem &&
+                        typeof event.previousItem === "object" &&
+                        "status" in event.previousItem
+                          ? event.previousItem.status
+                          : card.status;
+
+                      if (previousStatus !== newStatus) {
+                        // Update local state immediately for instant UI feedback
+                        setOptimisticAssignments((prev) =>
+                          prev.map((assignment) =>
+                            assignment._id === card.id
+                              ? { ...assignment, status: newStatus }
+                              : assignment
+                          )
+                        );
+
+                        // Convert string ID to Convex ID type
+                        const assignmentId = card.id as Id<"assignments">;
+
+                        // Sync with server in background (don't await)
+                        markAssignment({
+                          assignmentId,
+                          userId: convexUser?.clerkId || "",
+                          updates: {
+                            status: newStatus,
+                            ...(newStatus === "completed" && {
+                              submittedDate: Date.now(),
+                            }),
+                          },
+                        }).catch((error) => {
+                          // If server update fails, revert the optimistic update
+                          console.error(
+                            "Failed to update assignment on server:",
+                            error
+                          );
+                          setOptimisticAssignments((prev) =>
+                            prev.map((assignment) =>
+                              assignment._id === card.id
+                                ? { ...assignment, status: previousStatus }
+                                : assignment
+                            )
+                          );
+                          sonnerToast.error("Failed to move task", {
+                            description:
+                              "Please try again or contact support if the issue persists.",
+                            duration: 5000,
+                          });
+                        });
+
+                        // Show subtle success notification
+                        sonnerToast.success(`✓ Moved to ${column.title}`, {
+                          id: `move-${card.id}`,
+                          duration: 1500,
+                        });
+                      }
+                    } catch (err) {
+                      console.error("Failed to move task:", err);
+                      sonnerToast.error("Failed to move task", {
+                        id: `move-${card.id}`,
+                        description:
+                          "Please try again or contact support if the issue persists.",
+                        duration: 5000,
+                      });
+                    }
+                  };
+
+                  const priorities = [
+                    { priority: "high", color: "#ef4444" },
+                    { priority: "medium", color: "#f59e0b" },
+                    { priority: "low", color: "#10b981" },
+                  ];
+
+                  return (
+                    <div className="relative">
+                      {/* TaskBoard Header with Stats */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {assignments?.length || 0} Total Tasks
+                            </span>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="history" className="space-y-4">
-                    <div className="space-y-3">
-                      {completedAssignments.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          No completed tasks yet
-                        </div>
-                      ) : (
-                        completedAssignments.map((assignment: any) => (
-                          <div
-                            key={assignment._id}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setSelectedAssignment(assignment)}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate font-medium">
-                                {assignment.title}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Due: {formatDateString(assignment.dueDate)}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Completed on{" "}
-                                {mounted
-                                  ? new Date(
-                                      assignment.completedAt ||
-                                        assignment.dueDate
-                                    ).toLocaleDateString()
-                                  : ""}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                className={getPriorityColor(
-                                  assignment.priority
-                                )}
-                              >
-                                {assignment.priority}
-                              </Badge>
-                              <Badge className="bg-green-100 text-green-800">
-                                Completed
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingAssignment(assignment);
-                                  setShowTaskModal(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    if (!convexUser) {
-                                      sonnerToast.error(
-                                        "You must be logged in to delete assignments."
-                                      );
-                                      return;
-                                    }
-                                    await deleteAssignmentMutation({
-                                      assignmentId: assignment._id,
-                                      userId: convexUser.clerkId,
-                                    });
-                                    sonnerToast.success("Assignment deleted");
-                                    try {
-                                      router.refresh();
-                                    } catch (e) {}
-                                  } catch (err) {
-                                    console.error(
-                                      "delete assignment failed",
-                                      err
-                                    );
-                                    sonnerToast.error(
-                                      "Failed to delete assignment"
-                                    );
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {assignments?.filter(
+                                (a: any) => a.status === "completed"
+                              ).length || 0}{" "}
+                              Completed
+                            </span>
                           </div>
-                        ))
-                      )}
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {assignments?.filter(
+                                (a: any) => a.status === "in-progress"
+                              ).length || 0}{" "}
+                              In Progress
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Enhanced TaskBoard Container */}
+                      <div
+                        className="bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-xl p-6 shadow-xl border border-slate-200/50 dark:border-slate-700/50"
+                        onKeyDown={async (e) => {
+                          // Prevent default behavior for all keys during task operations
+                          e.preventDefault();
+                          e.stopPropagation();
+
+                          if (e.key === "Delete" && selectedAssignment) {
+                            try {
+                              await deleteAssignment({
+                                assignmentId:
+                                  selectedAssignment._id as Id<"assignments">,
+                                userId: convexUser?.clerkId || "",
+                              });
+                              sonnerToast.success("Task deleted successfully", {
+                                description: `${selectedAssignment.title} has been removed.`,
+                                duration: 3000,
+                              });
+                              setSelectedAssignment(null);
+                            } catch (err) {
+                              console.error("Failed to delete task:", err);
+                              sonnerToast.error("Failed to delete task", {
+                                description:
+                                  "Please try again or contact support if the issue persists.",
+                                duration: 5000,
+                              });
+                            }
+                          }
+                        }}
+                        onKeyUp={(e) => {
+                          // Allow other keys to work normally but prevent bubbling
+                          e.stopPropagation();
+                        }}
+                        onFocus={() => {
+                          // Ensure container stays focused
+                          const container = document.querySelector(
+                            "[data-taskboard-container]"
+                          ) as HTMLElement;
+                          if (container) {
+                            container.focus();
+                          }
+                        }}
+                        tabIndex={0} // Make the div focusable for keyboard events
+                        style={{
+                          userSelect: "none", // Prevent text selection
+                          WebkitUserSelect: "none",
+                          MozUserSelect: "none",
+                          msUserSelect: "none",
+                          outline: "none", // Remove focus outline
+                        }}
+                        onClick={() => {
+                          // Ensure the container gets focus when clicked
+                          const container = document.querySelector(
+                            "[data-taskboard-container]"
+                          ) as HTMLElement;
+                          if (container) {
+                            container.focus();
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          // Prevent text selection on mouse down
+                          e.preventDefault();
+                        }}
+                        onDragStart={(e) => {
+                          // Prevent text selection during drag
+                          e.preventDefault();
+                          document.body.style.userSelect = "none";
+                          (document.body.style as any).webkitUserSelect =
+                            "none";
+                          (document.body.style as any).MozUserSelect = "none";
+                          (document.body.style as any).MsUserSelect = "none";
+                        }}
+                        onDragEnd={() => {
+                          // Restore text selection after drag
+                          document.body.style.userSelect = "";
+                          (document.body.style as any).webkitUserSelect = "";
+                          (document.body.style as any).MozUserSelect = "";
+                          (document.body.style as any).MsUserSelect = "";
+                        }}
+                        data-taskboard-container
+                      >
+                        <TaskBoard
+                          taskData={cardData}
+                          columnData={columnData}
+                          priorities={priorities}
+                          onChange={handleTaskBoardChange}
+                          style={
+                            {
+                              height:
+                                window.innerWidth < 768
+                                  ? "500px"
+                                  : window.innerWidth < 1024
+                                  ? "600px"
+                                  : "650px",
+                              background: "transparent",
+                              borderRadius: "12px",
+                              userSelect: "none",
+                              webkitUserSelect: "none",
+                              MozUserSelect: "none",
+                              msUserSelect: "none",
+                            } as any
+                          }
+                        />
+                      </div>
+
+                      {/* TaskBoard Footer with Quick Actions */}
+                      <div className="mt-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <span>Drag tasks between columns</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span>Click to select task</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span>Delete key to remove</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // Trigger a refresh of Convex queries
+                              router.refresh();
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            <Target className="w-3 h-3 mr-1" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tasks & Upcoming Events */}
+          <div className="space-y-6 xl:sticky xl:top-20 xl:self-start">
+            {/* Upcoming Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Upcoming Events</CardTitle>
+                <CardDescription>Your next important dates</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {upcomingEvents.map((event: any) => (
+                  <div
+                    key={event._id || event.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border"
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${getPriorityColor(
+                        event.priority
+                      )}`}
+                    >
+                      {getEventTypeIcon(event.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{event.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {mounted
+                          ? new Date(event.startTime).toLocaleString()
+                          : ""}
+                        {event.duration ? ` • ${event.duration} min` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={
+                          followedItems.includes(`event:${event._id}`)
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={() => toggleFollow(`event:${event._id}`)}
+                      >
+                        {followedItems.includes(`event:${event._id}`)
+                          ? "Following"
+                          : "Follow"}
+                      </Button>
+                    </div>
+                    {event.type === "study" && (
+                      <div className="flex items-center gap-2">
+                        <StudySessionTimer editSessionId={event._id}>
+                          <button className="btn btn-xs border">Edit</button>
+                        </StudySessionTimer>
+                        <button
+                          className="btn btn-xs text-red-600"
+                          onClick={async () => {
+                            try {
+                              if (event.isStudySession) {
+                                await deleteStudySession({
+                                  sessionId: event._id,
+                                });
+                              } else {
+                                // Ensure convexUser is present so userId is a string (Convex API requires string)
+                                if (!convexUser) {
+                                  console.warn(
+                                    "Unable to delete event: no convex user available"
+                                  );
+                                  return;
+                                }
+                                await deleteEvent({
+                                  eventId: event._id,
+                                  userId: convexUser.clerkId,
+                                });
+                              }
+                            } catch (e) {
+                              console.error(
+                                "Failed to delete upcoming event/session",
+                                e
+                              );
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
