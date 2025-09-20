@@ -65,8 +65,50 @@ export const createAiContent = mutation({
   },
 });
 
+export const updateAiContent = mutation({
+  args: {
+    id: v.id("ai_content"),
+    title: v.optional(v.string()),
+    contentType: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+    generatedText: v.string(),
+    model: v.optional(v.string()),
+    tokens: v.optional(v.number()),
+    usage: v.optional(
+      v.object({
+        totalTokens: v.optional(v.number()),
+        promptTokens: v.optional(v.number()),
+        completionTokens: v.optional(v.number()),
+      })
+    ),
+    metadata: v.optional(v.object({ rawOptions: v.optional(v.string()) })),
+    visibility: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      contentType: args.contentType,
+      prompt: args.prompt,
+      generatedText: args.generatedText,
+      model: args.model,
+      tokens: args.tokens,
+      usage: args.usage,
+      metadata: args.metadata,
+      visibility: args.visibility || "private",
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
 export const getAiContentByUser = query({
-  args: { userId: v.string(), limit: v.optional(v.number()) },
+  args: {
+    userId: v.string(),
+    limit: v.optional(v.number()),
+    refreshKey: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const q = ctx.db
       .query("ai_content")
@@ -78,7 +120,7 @@ export const getAiContentByUser = query({
 });
 
 export const countAiContentToday = query({
-  args: { userId: v.string() },
+  args: { userId: v.string(), refreshKey: v.optional(v.number()) },
   handler: async (ctx, args) => {
     // Count ai_content for the user where createdAt >= start of today's UTC midnight
     const now = Date.now();

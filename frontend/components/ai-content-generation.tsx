@@ -4,18 +4,12 @@ import { useEffect, useState } from "react";
 import { startUserContextPrefetch } from "@/lib/prefetch";
 import ReactMarkdown from "react-markdown";
 import { useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConvexUser } from "@/hooks/use-convex-user";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { LockedFeature } from "@/components/locked-feature";
 import { FeatureFlag } from "@/features/flag";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -38,18 +32,103 @@ import {
   Copy,
   Download,
   RefreshCw,
-  Crown,
   Wand2,
   MessageSquare,
   List,
   Hash,
   CheckCircle,
   Clock,
-  Star,
-  Zap,
   Plus,
 } from "lucide-react";
-import { toast as sonnerToast } from 'sonner';
+import { toast as sonnerToast } from "sonner";
+
+// Theme support
+import { useTheme } from "next-themes";
+
+// Custom dark mode styles for Kendo Editor
+const darkModeStyles = `
+  .k-editor.k-dark .k-editor-toolbar {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  .k-editor.k-dark .k-editor-toolbar .k-button {
+    background-color: #1e293b !important;
+    color: #e6eef8 !important;
+    border-color: #334155 !important;
+  }
+  .k-editor.k-dark .k-editor-toolbar .k-button:hover {
+    background-color: #334155 !important;
+  }
+  .k-editor.k-dark .k-editor-content {
+    background-color: #0f172a !important;
+    color: #e6eef8 !important;
+    border-color: #334155 !important;
+  }
+  .k-editor.k-dark .k-editor-content .ProseMirror {
+    background-color: #0f172a !important;
+    color: #e6eef8 !important;
+  }
+  .k-editor.k-dark .k-editor-content .ProseMirror p {
+    color: #e6eef8 !important;
+  }
+  .k-editor.k-dark .k-popup {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  .k-editor.k-dark .k-list-item {
+    color: #e6eef8 !important;
+  }
+  .k-editor.k-dark .k-list-item:hover {
+    background-color: #334155 !important;
+  }
+`;
+
+// Kendo Editor imports
+import { Editor, EditorTools } from "@progress/kendo-react-editor";
+import "@progress/kendo-theme-default/dist/all.css";
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Card,
+} from "./ui/card";
+const {
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  ForeColor,
+  BackColor,
+  CleanFormatting,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Indent,
+  Outdent,
+  OrderedList,
+  UnorderedList,
+  NumberedList,
+  BulletedList,
+  InsertImage,
+  Unlink,
+  ViewHtml,
+  InsertTable,
+  AddRowBefore,
+  AddRowAfter,
+  AddColumnBefore,
+  AddColumnAfter,
+  DeleteRow,
+  DeleteColumn,
+  DeleteTable,
+  MergeCells,
+  SplitCell,
+  Undo,
+  Redo,
+} = EditorTools;
 
 export function AiContentGeneration() {
   const [activeTab, setActiveTab] = useState("generate");
@@ -64,6 +143,12 @@ export function AiContentGeneration() {
   const [wordCount, setWordCount] = useState("");
   const [tone, setTone] = useState("");
 
+  const [editedContent, setEditedContent] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentContentId, setCurrentContentId] = useState<string | null>(null);
+  const [lastSaveTime, setLastSaveTime] = useState<number>(0);
+  const [isContentSaved, setIsContentSaved] = useState(false);
+
   const contentTypes = [
     { value: "essay", label: "Essay", icon: FileText },
     { value: "summary", label: "Summary", icon: List },
@@ -77,16 +162,54 @@ export function AiContentGeneration() {
   const { plan, planInfo } = useUserPlan();
   const todaysCount = useQuery(
     api.aiContent.countAiContentToday,
-    user ? { userId: user.clerkId } : "skip"
+    user ? { userId: user.clerkId, refreshKey: lastSaveTime } : "skip"
   );
-  const planLimit = ((planInfo?.limits as any)?.[FeatureFlag.AI_CONTENT_GENERATION] ?? 25) as number;
+  const planLimit = ((planInfo?.limits as any)?.[
+    FeatureFlag.AI_CONTENT_GENERATION
+  ] ?? 25) as number;
   const generations = useQuery(
     api.aiContent.getAiContentByUser,
-    user ? { userId: user.clerkId, limit: 10 } : "skip"
+    user
+      ? { userId: user.clerkId, limit: 10, refreshKey: lastSaveTime }
+      : "skip"
   );
+  const saveAiContent = useMutation(api.aiContent.createAiContent);
+  const updateAiContent = useMutation(api.aiContent.updateAiContent);
+  const { theme } = useTheme();
   const [userContextPrefetch, setUserContextPrefetch] = useState<any | null>(
     null
   );
+
+  // Inject dark mode styles
+  useEffect(() => {
+    if (typeof document === "undefined") return; // SSR safety check
+
+    if (theme === "dark") {
+      const styleId = "kendo-editor-dark-styles";
+      let styleElement = document.getElementById(styleId);
+
+      if (!styleElement) {
+        styleElement = document.createElement("style");
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+
+      styleElement.textContent = darkModeStyles;
+    } else {
+      const styleElement = document.getElementById("kendo-editor-dark-styles");
+      if (styleElement) {
+        styleElement.remove();
+      }
+    }
+
+    return () => {
+      if (typeof document === "undefined") return;
+      const styleElement = document.getElementById("kendo-editor-dark-styles");
+      if (styleElement) {
+        styleElement.remove();
+      }
+    };
+  }, [theme]);
 
   useEffect(() => {
     if (!user) return;
@@ -174,78 +297,82 @@ export function AiContentGeneration() {
 
   // local legacy toast removed; use Sonner `sonnerToast`
 
-    const safeText = (t: any) => (t == null ? "" : String(t));
+  const safeText = (t: any) => (t == null ? "" : String(t));
 
-    const handleCopy = async (text: string) => {
-      const payload = safeText(text);
-      try {
-        if (navigator?.clipboard?.writeText) {
-          await navigator.clipboard.writeText(payload);
-        } else {
-          const ta = document.createElement('textarea');
-          // Ensure the textarea doesn't affect layout and is selectable
-          ta.value = payload;
-          ta.style.position = 'fixed';
-          ta.style.top = '0';
-          ta.style.left = '0';
-          ta.style.width = '1px';
-          ta.style.height = '1px';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          // Fallback for some browsers
-          ta.setSelectionRange(0, payload.length);
-          document.execCommand('copy');
-          ta.remove();
-        }
-        // Use sonner toaster for visible feedback
-        sonnerToast.success('Copied to clipboard');
-      } catch (e) {
-        console.error('Copy failed', e);
-        sonnerToast.error('Unable to copy to clipboard');
+  const handleCopy = async (text: string) => {
+    const payload = safeText(text);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
+      } else {
+        const ta = document.createElement("textarea");
+        // Ensure the textarea doesn't affect layout and is selectable
+        ta.value = payload;
+        ta.style.position = "fixed";
+        ta.style.top = "0";
+        ta.style.left = "0";
+        ta.style.width = "1px";
+        ta.style.height = "1px";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        // Fallback for some browsers
+        ta.setSelectionRange(0, payload.length);
+        document.execCommand("copy");
+        ta.remove();
       }
-    };
+      // Use sonner toaster for visible feedback
+      sonnerToast.success("Copied to clipboard");
+    } catch (e) {
+      console.error("Copy failed", e);
+      sonnerToast.error("Unable to copy to clipboard");
+    }
+  };
 
-    const handleDownload = (text: string, filename?: string) => {
-      const payload = safeText(text);
-      try {
-        const blob = new Blob([payload], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename || `ai-content-${Date.now()}.md`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-  sonnerToast.success(`Saved ${a.download}`);
-      } catch (e) {
-        console.error('Download failed', e);
-        sonnerToast.error('Unable to save file');
+  const handleDownload = (text: string, filename?: string) => {
+    const payload = safeText(text);
+    try {
+      const blob = new Blob([payload], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || `ai-content-${Date.now()}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`Saved ${a.download}`);
+    } catch (e) {
+      console.error("Download failed", e);
+      sonnerToast.error("Unable to save file");
+    }
+  };
+
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const handleView = (text: string, title?: string) => {
+    const payload = safeText(text);
+    try {
+      const w = window.open("", "_blank");
+      if (!w) {
+        sonnerToast.error("Unable to open new window");
+        return;
       }
-    };
-
-    const escapeHtml = (str: string) =>
-      str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const handleView = (text: string, title?: string) => {
-      const payload = safeText(text);
-      try {
-        const w = window.open('', '_blank');
-        if (!w) {
-          sonnerToast.error('Unable to open new window');
-          return;
-        }
-        const html = `<html><head><title>${title || 'Generated Content'}</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#0b1220;color:#e6eef8;font-family:monospace;white-space:pre-wrap;padding:16px;">${escapeHtml(payload)}</body></html>`;
-        w.document.open();
-        w.document.write(html);
-        w.document.close();
-      } catch (e) {
-        console.error('View failed', e);
-        sonnerToast.error('Unable to open content');
-      }
-    };
+      const html = `<html><head><title>${
+        title || "Generated Content"
+      }</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#0b1220;color:#e6eef8;font-family:monospace;white-space:pre-wrap;padding:16px;">${escapeHtml(
+        payload
+      )}</body></html>`;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    } catch (e) {
+      console.error("View failed", e);
+      sonnerToast.error("Unable to open content");
+    }
+  };
 
   const handleGenerate = async () => {
     // Compose a prompt from the form fields
@@ -269,7 +396,10 @@ export function AiContentGeneration() {
         body: JSON.stringify({
           prompt: composed,
           contentType: selectedType,
-          options: { wordCount, tone },
+          options: {
+            wordCount: wordCount ? parseInt(wordCount) : undefined,
+            tone: tone || undefined,
+          },
           userId: user?.clerkId,
           context: JSON.stringify(contextPayload),
         }),
@@ -310,6 +440,14 @@ export function AiContentGeneration() {
       setIsGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (generatedContent) {
+      setEditedContent(generatedContent);
+      setIsContentSaved(false);
+      setCurrentContentId(null);
+    }
+  }, [generatedContent]);
 
   return (
     <LockedFeature
@@ -455,7 +593,8 @@ export function AiContentGeneration() {
                   {typeof todaysCount === "number" && (
                     <div className="text-center">
                       <Badge variant="outline">
-                        {Math.max(planLimit - todaysCount, 0)} generations remaining today
+                        {Math.max(planLimit - todaysCount, 0)} generations
+                        remaining today
                       </Badge>
                     </div>
                   )}
@@ -472,46 +611,264 @@ export function AiContentGeneration() {
                 <CardContent className="space-y-4">
                   {generatedContent ? (
                     <>
-                      <div className="rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <div className="prose prose-invert max-w-none">
-                          <ReactMarkdown>
-                            {normalizeMarkdown(generatedContent)}
-                          </ReactMarkdown>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-medium">
+                            Generated Content
+                          </h3>
+                          {isContentSaved && (
+                            <Badge variant="secondary" className="text-xs">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Saved
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={isEditing ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setIsEditing(!isEditing)}
+                          >
+                            <PenTool className="w-4 h-4 mr-2" />
+                            {isEditing ? "View" : "Edit"}
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleCopy(normalizeMarkdown(generatedContent))}
-                        >
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() =>
-                            handleDownload(
-                              generatedContent,
-                              `${(selectedType || "generated").replace(/\s+/g, "-")}-${Date.now()}.md`
-                            )
-                          }
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={handleGenerate}
-                          disabled={isGenerating}
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </Button>
-                      </div>
+
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          <Editor
+                            tools={[
+                              [Bold, Italic, Underline],
+                              [Undo, Redo],
+                              [OrderedList, UnorderedList],
+                              [InsertImage, InsertTable],
+                              [ViewHtml],
+                            ]}
+                            contentStyle={{
+                              height: 400,
+                              backgroundColor:
+                                theme === "dark" ? "#0f172a" : "#ffffff",
+                              color: theme === "dark" ? "#e6eef8" : "#000000",
+                            }}
+                            defaultEditMode="div"
+                            value={editedContent}
+                            className={theme === "dark" ? "k-dark" : ""}
+                            onChange={(event) => {
+                              setEditedContent(event.html || "");
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={async () => {
+                                try {
+                                  const generateTitle = () => {
+                                    if (topic.trim()) return topic.trim();
+                                    if (selectedType) {
+                                      const typeLabel =
+                                        contentTypes.find(
+                                          (t) => t.value === selectedType
+                                        )?.label || selectedType;
+                                      return `${typeLabel} - ${new Date().toLocaleDateString()}`;
+                                    }
+                                    return `AI Content - ${new Date().toLocaleDateString()}`;
+                                  };
+
+                                  const contentTitle = generateTitle();
+
+                                  if (currentContentId) {
+                                    await updateAiContent({
+                                      id: currentContentId as any,
+                                      title: contentTitle,
+                                      contentType: selectedType,
+                                      prompt: requirements || topic,
+                                      generatedText: editedContent,
+                                      model: "gemini-1.5-flash",
+                                      visibility: "private",
+                                    });
+                                  } else {
+                                    let existingContentId = null;
+                                    if (
+                                      generations &&
+                                      Array.isArray(generations)
+                                    ) {
+                                      const currentOptions = {
+                                        wordCount: wordCount
+                                          ? parseInt(wordCount)
+                                          : undefined,
+                                        tone: tone || undefined,
+                                      };
+                                      const optionsString =
+                                        JSON.stringify(currentOptions);
+
+                                      const existing = generations.find((g) => {
+                                        const isSamePrompt =
+                                          g.prompt === (requirements || topic);
+                                        const isSameContentType =
+                                          g.contentType === selectedType;
+
+                                        let isSameOptions = false;
+                                        if (
+                                          g.metadata &&
+                                          g.metadata.rawOptions
+                                        ) {
+                                          try {
+                                            const savedOptions = JSON.parse(
+                                              g.metadata.rawOptions
+                                            );
+                                            isSameOptions =
+                                              JSON.stringify(savedOptions) ===
+                                              optionsString;
+                                          } catch (e) {
+                                            // If parsing fails, consider options different
+                                            isSameOptions = false;
+                                          }
+                                        } else if (!wordCount && !tone) {
+                                          // If no options specified and no saved options, consider them the same
+                                          isSameOptions = true;
+                                        }
+
+                                        return (
+                                          isSamePrompt &&
+                                          isSameContentType &&
+                                          isSameOptions
+                                        );
+                                      });
+
+                                      if (existing) {
+                                        existingContentId = existing._id;
+                                      }
+                                    }
+
+                                    if (existingContentId) {
+                                      console.log(
+                                        "Updating existing content with same prompt:",
+                                        existingContentId
+                                      );
+
+                                      await updateAiContent({
+                                        id: existingContentId as any,
+                                        title: contentTitle,
+                                        contentType: selectedType,
+                                        prompt: requirements || topic,
+                                        generatedText: editedContent,
+                                        model: "gemini-1.5-flash",
+                                        visibility: "private",
+                                      });
+                                      setCurrentContentId(existingContentId);
+                                    } else {
+                                      const newId = await saveAiContent({
+                                        userId: user?.clerkId || "",
+                                        title: contentTitle,
+                                        contentType: selectedType,
+                                        prompt: requirements || topic,
+                                        generatedText: editedContent,
+                                        model: "gemini-1.5-flash",
+                                        visibility: "private",
+                                      });
+                                      setCurrentContentId(newId);
+                                    }
+                                  }
+
+                                  sonnerToast.success(
+                                    "Content saved successfully!"
+                                  );
+                                  setIsEditing(false);
+
+                                  // Update the displayed content to show the saved version
+                                  setGeneratedContent(editedContent);
+
+                                  // Mark content as saved
+                                  setIsContentSaved(true);
+
+                                  // Force refresh of generations query by updating timestamp
+                                  setLastSaveTime(Date.now());
+                                } catch (error) {
+                                  console.error("Save failed:", error);
+                                  sonnerToast.error("Failed to save content");
+                                }
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Save Changes
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setEditedContent(generatedContent);
+                                setIsEditing(false);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg p-4 max-h-96 overflow-y-auto">
+                          <div className="prose prose-invert max-w-none">
+                            <ReactMarkdown>
+                              {normalizeMarkdown(generatedContent)}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() =>
+                              handleCopy(normalizeMarkdown(generatedContent))
+                            }
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copy
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() =>
+                              handleDownload(
+                                generatedContent,
+                                `${(selectedType || "generated").replace(
+                                  /\s+/g,
+                                  "-"
+                                )}-${Date.now()}.md`
+                              )
+                            }
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Word count: {normalizeMarkdown(generatedContent).split(/\s+/).filter(Boolean).length}</span>
-                        <span>Generated just now</span>
+                        <span>
+                          Word count:{" "}
+                          {
+                            normalizeMarkdown(generatedContent)
+                              .split(/\s+/)
+                              .filter(Boolean).length
+                          }
+                        </span>
+                        <span>
+                          {isContentSaved
+                            ? `Saved ${
+                                lastSaveTime
+                                  ? new Date(lastSaveTime).toLocaleTimeString()
+                                  : "recently"
+                              }`
+                            : "Generated just now"}
+                        </span>
                       </div>
                     </>
                   ) : (
@@ -628,21 +985,41 @@ export function AiContentGeneration() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleView(generation.generatedText, generation.title)}
+                              onClick={() =>
+                                handleView(
+                                  generation.generatedText,
+                                  generation.title
+                                )
+                              }
                             >
                               View
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleCopy(normalizeMarkdown(generation.generatedText))}
+                              onClick={() =>
+                                handleCopy(
+                                  normalizeMarkdown(generation.generatedText)
+                                )
+                              }
                             >
                               <Copy className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownload(generation.generatedText, `${(generation.title || generation.contentType || 'generation').replace(/\s+/g, '-')}-${new Date(generation.createdAt).getTime()}.md`)}
+                              onClick={() =>
+                                handleDownload(
+                                  generation.generatedText,
+                                  `${(
+                                    generation.title ||
+                                    generation.contentType ||
+                                    "generation"
+                                  ).replace(/\s+/g, "-")}-${new Date(
+                                    generation.createdAt
+                                  ).getTime()}.md`
+                                )
+                              }
                             >
                               <Download className="w-4 h-4" />
                             </Button>

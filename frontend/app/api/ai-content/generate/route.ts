@@ -17,21 +17,43 @@ type ReqBody = {
 
 export async function POST(request: NextRequest) {
   try {
-  const reqBody: ReqBody = await request.json();
-  const { prompt, contentType, options, userId: clientUserId } = reqBody;
+    const reqBody: ReqBody = await request.json();
+    const { prompt, contentType, options, userId: clientUserId } = reqBody;
 
-  // Derive authenticated userId from Clerk for persistence. Allow unauthenticated
-  // streaming, but require auth to write generated content to Convex.
-  const { userId } = await auth();
+    // Derive authenticated userId from Clerk for persistence. Allow unauthenticated
+    // streaming, but require auth to write generated content to Convex.
+    const { userId } = await auth();
 
     if (!prompt || typeof prompt !== "string") {
-      return NextResponse.json({ error: "prompt is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "prompt is required" },
+        { status: 400 }
+      );
     }
 
-    // Build a short system instruction based on contentType and options
-    const systemInstruction = `You are EduBox Content Generator. Produce a ${
+    let systemInstruction = `You are EduBox Content Generator. Produce a ${
       contentType || "content"
-    } tailored for a college student. Follow any options provided.`;
+    } tailored for a college student.`;
+
+    if (options) {
+      const optionParts = [];
+      if (options.wordCount && typeof options.wordCount === "number") {
+        optionParts.push(`Aim for approximately ${options.wordCount} words`);
+      }
+      if (options.tone && typeof options.tone === "string") {
+        optionParts.push(
+          `Use a ${options.tone.toLowerCase()} tone throughout the content`
+        );
+      }
+      if (optionParts.length > 0) {
+        systemInstruction += ` Important requirements: ${optionParts.join(
+          ". "
+        )}.`;
+      }
+    }
+
+    systemInstruction +=
+      " Be comprehensive yet concise, well-structured, and directly address the user's request.";
 
     const messages = [
       { role: "system" as const, content: systemInstruction },
@@ -67,7 +89,8 @@ export async function POST(request: NextRequest) {
             const { done, value } = await reader.read();
             if (done) break;
             // value is a Uint8Array chunk from the text response
-            const chunkText = typeof value === "string" ? value : decoder.decode(value);
+            const chunkText =
+              typeof value === "string" ? value : decoder.decode(value);
             assembled += chunkText;
             controller.enqueue(encoder.encode(chunkText));
           }
@@ -83,14 +106,17 @@ export async function POST(request: NextRequest) {
               // history stays separate from other LLM outputs (study plans, etc.)
               await convex.mutation(api.aiContent.createAiContent, {
                 userId,
-                title: options?.title ?? (contentType ? contentType : 'AI Content'),
-                contentType: contentType ?? 'ai_content',
+                title:
+                  options?.title ?? (contentType ? contentType : "AI Content"),
+                contentType: contentType ?? "ai_content",
                 prompt,
                 generatedText: assembled,
                 model: "gemini-1.5-flash",
                 tokens: undefined,
                 usage: undefined,
-                metadata: options ? { rawOptions: JSON.stringify(options) } : undefined,
+                metadata: options
+                  ? { rawOptions: JSON.stringify(options) }
+                  : undefined,
                 visibility: "private",
               });
 
@@ -107,7 +133,10 @@ export async function POST(request: NextRequest) {
               //   visibility: "private",
               // });
             } catch (convexErr) {
-              console.error("Failed to persist AI content generation to Convex:", convexErr);
+              console.error(
+                "Failed to persist AI content generation to Convex:",
+                convexErr
+              );
             }
           }
         } catch (streamErr) {
@@ -122,7 +151,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     console.error("AI content generation error:", err);
-    return NextResponse.json({ error: "Failed to generate content" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate content" },
+      { status: 500 }
+    );
   }
 }
 
