@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
+import { Loader as KendoLoader } from "@progress/kendo-react-indicators";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -42,7 +43,10 @@ interface ScheduleEnhancerModalProps {
   events: any[];
   tasks: any[];
   studySessions: any[];
-  onOptimizeSchedule?: (optimizedSchedule: OptimizedScheduleData, scheduleId: Id<"optimizedSchedules">) => void;
+  onOptimizeSchedule?: (
+    optimizedSchedule: OptimizedScheduleData,
+    scheduleId: Id<"optimizedSchedules">
+  ) => void;
 }
 
 export function ScheduleEnhancerModal({
@@ -205,7 +209,6 @@ export function ScheduleEnhancerModal({
         studySessions
       );
 
-
       // Save the optimized schedule
       const savedScheduleId = await saveOptimizedSchedule({
         userId: convexUser.clerkId,
@@ -220,7 +223,6 @@ export function ScheduleEnhancerModal({
         aiModel: "llama-3.1-8b-instant",
         optimizationScore: 90, // Higher score for AI optimization
       });
-
 
       if (onOptimizeSchedule) {
         onOptimizeSchedule(optimizedSchedule, savedScheduleId);
@@ -274,7 +276,7 @@ export function ScheduleEnhancerModal({
           >
             {isOptimizing ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <KendoLoader size="small" className="mr-2" />
                 Optimizing...
               </>
             ) : (
@@ -299,7 +301,6 @@ async function optimizeScheduleWithAI(
   studySessions: any[]
 ): Promise<OptimizedScheduleData> {
   try {
-
     const response = await fetch("/api/schedule-optimize", {
       method: "POST",
       headers: {

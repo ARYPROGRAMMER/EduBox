@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader as KendoLoader } from "@progress/kendo-react-indicators";
 
 export interface LoaderProps {
   className?: string;
@@ -7,13 +7,6 @@ export interface LoaderProps {
   variant?: "default" | "overlay" | "inline";
   text?: string;
 }
-
-const sizeClasses = {
-  sm: "w-4 h-4",
-  md: "w-6 h-6",
-  lg: "w-8 h-8",
-  xl: "w-12 h-12",
-};
 
 export function Loader({
   className,
@@ -23,8 +16,17 @@ export function Loader({
   ...props
 }: LoaderProps) {
   const LoaderIcon = (
-    <Loader2
-      className={cn("animate-spin text-primary", sizeClasses[size], className)}
+    <KendoLoader
+      size={
+        size === "sm"
+          ? "small"
+          : size === "md"
+          ? "medium"
+          : size === "lg"
+          ? "large"
+          : "large"
+      }
+      className={cn("text-primary", className)}
     />
   );
 
@@ -89,12 +91,9 @@ export function ButtonLoader({
   className?: string;
 }) {
   return (
-    <Loader2
-      className={cn(
-        "animate-spin",
-        size === "sm" ? "w-4 h-4" : "w-5 h-5",
-        className
-      )}
+    <KendoLoader
+      size={size === "sm" ? "small" : "medium"}
+      className={cn(className)}
     />
   );
 }

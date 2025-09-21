@@ -6,6 +6,7 @@ import {
 } from "@schematichq/schematic-react";
 import { Progress } from "./ui/progress";
 import { FeatureFlag } from "@/features/flag";
+import { Loader as KendoLoader } from "@progress/kendo-react-indicators";
 
 function Usage({
   featureFlag,
@@ -25,7 +26,11 @@ function Usage({
     featureUsage && featureAllocation && featureUsage >= featureAllocation;
 
   if (isPending) {
-    return <div className="text-gray-500 text-center py-4">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center py-4">
+        <KendoLoader size="medium" />
+      </div>
+    );
   }
 
   if (hasUsedAllTokens) {

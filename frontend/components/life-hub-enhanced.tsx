@@ -17,8 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   CalendarDays,
   Users,
@@ -28,6 +40,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
+import { Loader as KendoLoader } from "@progress/kendo-react-indicators";
 
 export function LifeHubEnhanced() {
   const [mounted, setMounted] = useState(false);
@@ -36,7 +49,9 @@ export function LifeHubEnhanced() {
 
   // Fetch real data from Convex
   const campusEvents = useQuery(api.campusLife.getCampusEvents, { limit: 20 });
-  const upcomingEvents = useQuery(api.campusLife.getUpcomingCampusEvents, { limit: 10 });
+  const upcomingEvents = useQuery(api.campusLife.getUpcomingCampusEvents, {
+    limit: 10,
+  });
   const todayMenu = useQuery(api.campusLife.getTodayMenu, {});
   const diningVenues = useQuery(api.campusLife.getDiningVenues, {});
 
@@ -114,22 +129,22 @@ export function LifeHubEnhanced() {
     try {
       // Create a FormData object to send the PDF
       const formData = new FormData();
-      formData.append('pdf', uploadedPdf);
-      formData.append('type', 'dining-menu');
+      formData.append("pdf", uploadedPdf);
+      formData.append("type", "dining-menu");
 
       // Send to our PDF processing API that uses Gemini
-      const response = await fetch('/api/process-pdf-menu', {
-        method: 'POST',
+      const response = await fetch("/api/process-pdf-menu", {
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to process PDF');
+        throw new Error("Failed to process PDF");
       }
 
       const result = await response.json();
       setExtractedMenuItems(result.menuItems || []);
-      
+
       if (result.menuItems?.length > 0) {
         // Set the first item as the main form data
         const firstItem = result.menuItems[0];
@@ -142,8 +157,8 @@ export function LifeHubEnhanced() {
         });
       }
     } catch (error) {
-      console.error('Error processing PDF:', error);
-      alert('Failed to process PDF menu. Please try again.');
+      console.error("Error processing PDF:", error);
+      alert("Failed to process PDF menu. Please try again.");
     } finally {
       setIsProcessingPdf(false);
     }
@@ -151,7 +166,7 @@ export function LifeHubEnhanced() {
 
   const handleSubmitEvent = async () => {
     if (!convexUser || !eventForm.title || !eventForm.dateTime) return;
-    
+
     try {
       await createCampusEvent({
         title: eventForm.title,
@@ -159,15 +174,16 @@ export function LifeHubEnhanced() {
         category: eventForm.type,
         location: eventForm.location,
         startTime: new Date(eventForm.dateTime).getTime(),
-        organizer: convexUser.firstName && convexUser.lastName ? 
-          `${convexUser.firstName} ${convexUser.lastName}` : 
-          convexUser.email || "Anonymous",
+        organizer:
+          convexUser.firstName && convexUser.lastName
+            ? `${convexUser.firstName} ${convexUser.lastName}`
+            : convexUser.email || "Anonymous",
       });
-      
+
       setEventForm({
         title: "",
         description: "",
-        type: "social", 
+        type: "social",
         location: "",
         dateTime: "",
       });
@@ -179,18 +195,20 @@ export function LifeHubEnhanced() {
 
   const handleSubmitDining = async () => {
     if (!convexUser || !diningForm.name) return;
-    
+
     try {
       await createDiningItem({
         title: diningForm.name,
         description: diningForm.description,
         location: diningForm.location,
-        menu: [{
-          item: diningForm.name,
-          price: diningForm.price ? parseFloat(diningForm.price) : undefined,
-        }],
+        menu: [
+          {
+            item: diningForm.name,
+            price: diningForm.price ? parseFloat(diningForm.price) : undefined,
+          },
+        ],
       });
-      
+
       setDiningForm({
         name: "",
         description: "",
@@ -228,7 +246,7 @@ export function LifeHubEnhanced() {
             Discover events, clubs, and campus activities
           </p>
         </div>
-  
+
         <Dialog open={isEventFormOpen} onOpenChange={setIsEventFormOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleCreateEvent} className="gap-2">
@@ -246,7 +264,9 @@ export function LifeHubEnhanced() {
                 <Input
                   id="title"
                   value={eventForm.title}
-                  onChange={(e) => setEventForm({...eventForm, title: e.target.value})}
+                  onChange={(e) =>
+                    setEventForm({ ...eventForm, title: e.target.value })
+                  }
                   placeholder="Enter event title"
                 />
               </div>
@@ -255,7 +275,9 @@ export function LifeHubEnhanced() {
                 <Textarea
                   id="description"
                   value={eventForm.description}
-                  onChange={(e) => setEventForm({...eventForm, description: e.target.value})}
+                  onChange={(e) =>
+                    setEventForm({ ...eventForm, description: e.target.value })
+                  }
                   placeholder="Describe your event"
                   rows={3}
                 />
@@ -263,7 +285,12 @@ export function LifeHubEnhanced() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="type">Event Type</Label>
-                  <Select value={eventForm.type} onValueChange={(value) => setEventForm({...eventForm, type: value})}>
+                  <Select
+                    value={eventForm.type}
+                    onValueChange={(value) =>
+                      setEventForm({ ...eventForm, type: value })
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -280,7 +307,9 @@ export function LifeHubEnhanced() {
                   <Input
                     id="location"
                     value={eventForm.location}
-                    onChange={(e) => setEventForm({...eventForm, location: e.target.value})}
+                    onChange={(e) =>
+                      setEventForm({ ...eventForm, location: e.target.value })
+                    }
                     placeholder="Event location"
                   />
                 </div>
@@ -291,14 +320,22 @@ export function LifeHubEnhanced() {
                   id="datetime"
                   type="datetime-local"
                   value={eventForm.dateTime}
-                  onChange={(e) => setEventForm({...eventForm, dateTime: e.target.value})}
+                  onChange={(e) =>
+                    setEventForm({ ...eventForm, dateTime: e.target.value })
+                  }
                 />
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsEventFormOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEventFormOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button onClick={handleSubmitEvent} disabled={!eventForm.title || !eventForm.dateTime}>
+                <Button
+                  onClick={handleSubmitEvent}
+                  disabled={!eventForm.title || !eventForm.dateTime}
+                >
                   Create Event
                 </Button>
               </div>
@@ -317,7 +354,10 @@ export function LifeHubEnhanced() {
         <TabsContent value="events" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {(campusEvents || []).map((event) => (
-              <Card key={event._id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={event._id}
+                className="hover:shadow-md transition-shadow"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
@@ -332,20 +372,20 @@ export function LifeHubEnhanced() {
                   <p className="text-sm text-muted-foreground">
                     {event.description || "No description available"}
                   </p>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-muted-foreground" />
                       <span>{formatDateTime(event.startTime)}</span>
                     </div>
-                    
+
                     {event.location && (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
                         <span>{event.location}</span>
                       </div>
                     )}
-                    
+
                     {event.capacity && (
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-muted-foreground" />
@@ -353,14 +393,14 @@ export function LifeHubEnhanced() {
                       </div>
                     )}
                   </div>
-                  
+
                   <Button className="w-full" size="sm">
                     View Details
                   </Button>
                 </CardContent>
               </Card>
             ))}
-            
+
             {(!campusEvents || campusEvents.length === 0) && (
               <div className="col-span-full text-center py-12">
                 <CalendarDays className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -377,7 +417,10 @@ export function LifeHubEnhanced() {
         <TabsContent value="upcoming" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {(upcomingEvents || []).map((event) => (
-              <Card key={event._id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={event._id}
+                className="hover:shadow-md transition-shadow"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
@@ -392,13 +435,13 @@ export function LifeHubEnhanced() {
                   <p className="text-sm text-muted-foreground">
                     {event.description || "No description available"}
                   </p>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-muted-foreground" />
                       <span>{formatDateTime(event.startTime)}</span>
                     </div>
-                    
+
                     {event.location && (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -406,14 +449,14 @@ export function LifeHubEnhanced() {
                       </div>
                     )}
                   </div>
-                  
+
                   <Button className="w-full" size="sm">
                     Join Event
                   </Button>
                 </CardContent>
               </Card>
             ))}
-            
+
             {(!upcomingEvents || upcomingEvents.length === 0) && (
               <div className="col-span-full text-center py-12">
                 <CalendarDays className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -430,11 +473,17 @@ export function LifeHubEnhanced() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-semibold">Dining Options</h3>
-              <p className="text-sm text-muted-foreground">Browse today's menu and dining venues</p>
+              <p className="text-sm text-muted-foreground">
+                Browse today's menu and dining venues
+              </p>
             </div>
             <Dialog open={isDiningFormOpen} onOpenChange={setIsDiningFormOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleCreateDining} variant="outline" className="gap-2">
+                <Button
+                  onClick={handleCreateDining}
+                  variant="outline"
+                  className="gap-2"
+                >
                   <Plus className="w-4 h-4" />
                   Add Dining Item
                 </Button>
@@ -448,12 +497,14 @@ export function LifeHubEnhanced() {
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <FileText className="w-5 h-5 text-blue-600" />
-                      <Label className="text-sm font-medium">Upload PDF Menu (Optional)</Label>
+                      <Label className="text-sm font-medium">
+                        Upload PDF Menu (Optional)
+                      </Label>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Upload a PDF menu and let AI extract items automatically
                     </p>
-                    
+
                     <div className="flex items-center gap-2">
                       <input
                         ref={fileInputRef}
@@ -462,9 +513,9 @@ export function LifeHubEnhanced() {
                         onChange={handlePdfUpload}
                         className="hidden"
                       />
-                      <Button 
+                      <Button
                         type="button"
-                        variant="outline" 
+                        variant="outline"
                         size="sm"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isProcessingPdf}
@@ -472,7 +523,7 @@ export function LifeHubEnhanced() {
                         <Upload className="w-4 h-4 mr-2" />
                         Choose PDF
                       </Button>
-                      
+
                       {uploadedPdf && (
                         <Button
                           type="button"
@@ -482,7 +533,7 @@ export function LifeHubEnhanced() {
                         >
                           {isProcessingPdf ? (
                             <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <KendoLoader size="small" className="mr-2" />
                               Processing...
                             </>
                           ) : (
@@ -494,13 +545,13 @@ export function LifeHubEnhanced() {
                         </Button>
                       )}
                     </div>
-                    
+
                     {uploadedPdf && (
                       <p className="text-xs text-green-600">
                         ✓ PDF uploaded: {uploadedPdf.name}
                       </p>
                     )}
-                    
+
                     {extractedMenuItems.length > 0 && (
                       <div className="bg-green-50 border border-green-200 rounded p-3">
                         <p className="text-xs text-green-700 font-medium mb-2">
@@ -509,7 +560,8 @@ export function LifeHubEnhanced() {
                         <div className="max-h-20 overflow-y-auto text-xs">
                           {extractedMenuItems.map((item, idx) => (
                             <div key={idx} className="text-green-600">
-                              • {item.name} {item.price ? `($${item.price})` : ''}
+                              • {item.name}{" "}
+                              {item.price ? `($${item.price})` : ""}
                             </div>
                           ))}
                         </div>
@@ -522,7 +574,9 @@ export function LifeHubEnhanced() {
                     <Input
                       id="name"
                       value={diningForm.name}
-                      onChange={(e) => setDiningForm({...diningForm, name: e.target.value})}
+                      onChange={(e) =>
+                        setDiningForm({ ...diningForm, name: e.target.value })
+                      }
                       placeholder="Enter item name"
                     />
                   </div>
@@ -531,7 +585,12 @@ export function LifeHubEnhanced() {
                     <Textarea
                       id="description"
                       value={diningForm.description}
-                      onChange={(e) => setDiningForm({...diningForm, description: e.target.value})}
+                      onChange={(e) =>
+                        setDiningForm({
+                          ...diningForm,
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="Describe the item"
                       rows={3}
                     />
@@ -544,20 +603,36 @@ export function LifeHubEnhanced() {
                         type="number"
                         step="0.01"
                         value={diningForm.price}
-                        onChange={(e) => setDiningForm({...diningForm, price: e.target.value})}
+                        onChange={(e) =>
+                          setDiningForm({
+                            ...diningForm,
+                            price: e.target.value,
+                          })
+                        }
                         placeholder="0.00"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="location">Location</Label>
-                      <Select value={diningForm.location} onValueChange={(value) => setDiningForm({...diningForm, location: value})}>
+                      <Select
+                        value={diningForm.location}
+                        onValueChange={(value) =>
+                          setDiningForm({ ...diningForm, location: value })
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select location" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Main Dining Hall">Main Dining Hall</SelectItem>
-                          <SelectItem value="Student Union">Student Union</SelectItem>
-                          <SelectItem value="Coffee Shop">Coffee Shop</SelectItem>
+                          <SelectItem value="Main Dining Hall">
+                            Main Dining Hall
+                          </SelectItem>
+                          <SelectItem value="Student Union">
+                            Student Union
+                          </SelectItem>
+                          <SelectItem value="Coffee Shop">
+                            Coffee Shop
+                          </SelectItem>
                           <SelectItem value="Food Court">Food Court</SelectItem>
                         </SelectContent>
                       </Select>
@@ -569,14 +644,25 @@ export function LifeHubEnhanced() {
                       id="availableUntil"
                       type="datetime-local"
                       value={diningForm.availableUntil}
-                      onChange={(e) => setDiningForm({...diningForm, availableUntil: e.target.value})}
+                      onChange={(e) =>
+                        setDiningForm({
+                          ...diningForm,
+                          availableUntil: e.target.value,
+                        })
+                      }
                     />
                   </div>
                   <div className="flex justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => setIsDiningFormOpen(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDiningFormOpen(false)}
+                    >
                       Cancel
                     </Button>
-                    <Button onClick={handleSubmitDining} disabled={!diningForm.name}>
+                    <Button
+                      onClick={handleSubmitDining}
+                      disabled={!diningForm.name}
+                    >
                       Add Item
                     </Button>
                   </div>
@@ -584,27 +670,39 @@ export function LifeHubEnhanced() {
               </DialogContent>
             </Dialog>
           </div>
-          
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Today's Menu Items */}
             {todayMenu && todayMenu.length > 0 ? (
               todayMenu.map((menuItem) => (
-                <Card key={menuItem._id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={menuItem._id}
+                  className="hover:shadow-md transition-shadow"
+                >
                   <CardHeader>
                     <CardTitle>{menuItem.title}</CardTitle>
-                    <CardDescription>{menuItem.location || "Main Dining Hall"}</CardDescription>
+                    <CardDescription>
+                      {menuItem.location || "Main Dining Hall"}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {menuItem.description && (
-                      <p className="text-sm text-muted-foreground">{menuItem.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {menuItem.description}
+                      </p>
                     )}
                     {menuItem.menu && menuItem.menu.length > 0 && (
                       <div className="space-y-2">
                         {menuItem.menu.slice(0, 3).map((item, index) => (
-                          <div key={index} className="flex justify-between items-center">
+                          <div
+                            key={index}
+                            className="flex justify-between items-center"
+                          >
                             <span className="text-sm">{item.item}</span>
                             {item.price && (
-                              <Badge variant="secondary">${item.price.toFixed(2)}</Badge>
+                              <Badge variant="secondary">
+                                ${item.price.toFixed(2)}
+                              </Badge>
                             )}
                           </div>
                         ))}
@@ -637,24 +735,31 @@ export function LifeHubEnhanced() {
             )}
 
             {/* Dining Venues */}
-            {diningVenues && diningVenues.length > 0 && (
+            {diningVenues &&
+              diningVenues.length > 0 &&
               diningVenues.slice(0, 2).map((venue) => (
-                <Card key={venue._id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={venue._id}
+                  className="hover:shadow-md transition-shadow"
+                >
                   <CardHeader>
                     <CardTitle>{venue.title}</CardTitle>
-                    <CardDescription>{venue.location || "Campus Location"}</CardDescription>
+                    <CardDescription>
+                      {venue.location || "Campus Location"}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {venue.description && (
-                      <p className="text-sm text-muted-foreground">{venue.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {venue.description}
+                      </p>
                     )}
                     <Button className="w-full" size="sm">
                       Visit Location
                     </Button>
                   </CardContent>
                 </Card>
-              ))
-            )}
+              ))}
           </div>
         </TabsContent>
       </Tabs>

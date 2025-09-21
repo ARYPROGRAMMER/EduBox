@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import { Loader as KendoLoader } from "@progress/kendo-react-indicators";
 import {
   Dialog,
   DialogContent,
@@ -235,7 +236,7 @@ export function GlobalSearch({
             {/* Loading State */}
             {isSearching && (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <KendoLoader size="medium" className="text-muted-foreground" />
                 <span className="ml-2 text-muted-foreground">Searching...</span>
               </div>
             )}
