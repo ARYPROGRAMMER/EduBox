@@ -319,46 +319,36 @@ export const getFileStats = query({
   },
 });
 
-// Search files by text content (for future AI enhancement)
-export const searchFiles = query({
+// Update file display order
+export const updateFileOrder = mutation({
   args: {
     userId: v.string(),
-    searchQuery: v.string(),
-    category: v.optional(v.string()),
-    limit: v.optional(v.number()),
+    fileOrders: v.array(
+      v.object({
+        fileId: v.id("files"),
+        order: v.number(),
+      })
+    ),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
-      .query("files")
-      .withIndex("by_user_id", (q) => q.eq("userId", args.userId));
-
-    if (args.category && args.category !== "all") {
-      query = query.filter((q) => q.eq(q.field("category"), args.category));
+    // Verify all files belong to the user
+    for (const { fileId } of args.fileOrders) {
+      const file = await ctx.db.get(fileId);
+      if (!file || file.userId !== args.userId) {
+        throw new Error("File not found or access denied");
+      }
     }
 
-    const files = await query
-      .filter((q) => q.neq(q.field("isArchived"), true))
-      .collect();
-
-    // Simple text search in filename and description
-    const searchTerm = args.searchQuery.toLowerCase();
-    const filteredFiles = files.filter(
-      (file) =>
-        file.fileName.toLowerCase().includes(searchTerm) ||
-        file.originalName.toLowerCase().includes(searchTerm) ||
-        file.description?.toLowerCase().includes(searchTerm) ||
-        file.tags?.some((tag) => tag.toLowerCase().includes(searchTerm))
+    // Update all file orders in a batch
+    const updates = args.fileOrders.map(({ fileId, order }) =>
+      ctx.db.patch(fileId, {
+        order,
+        updatedAt: Date.now(),
+      })
     );
 
-    const limitedFiles = filteredFiles
-      .sort((a, b) => b.uploadedAt - a.uploadedAt)
-      .slice(0, args.limit || 20);
+    await Promise.all(updates);
 
-    return await Promise.all(
-      limitedFiles.map(async (file) => ({
-        ...file,
-        url: await ctx.storage.getUrl(file.storageId),
-      }))
-    );
+    return { success: true };
   },
 });

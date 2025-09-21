@@ -26,6 +26,7 @@
     "@progress/kendo-react-progressbars": "^12.0.2",
     "@progress/kendo-react-ripple": "^12.0.2",
     "@progress/kendo-react-scrollview": "^12.0.2",
+    "@progress/kendo-react-sortable": "^12.0.2",
     "@progress/kendo-react-taskboard": "^12.0.2",
     "@progress/kendo-react-upload": "^12.0.2",
     "@progress/kendo-theme-default": "^12.0.1",

@@ -102,6 +102,9 @@ export default defineSchema({
     isArchived: v.optional(v.boolean()),
     isFavorite: v.optional(v.boolean()),
 
+    // Display order
+    order: v.optional(v.number()),
+
     // Metadata
     uploadedAt: v.number(),
     lastAccessedAt: v.optional(v.number()),

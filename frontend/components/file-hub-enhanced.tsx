@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -40,6 +40,11 @@ import {
 import { Upload as KendoUpload } from "@progress/kendo-react-upload";
 import { ProgressBar } from "@progress/kendo-react-progressbars";
 import {
+  Sortable,
+  SortableItemUIProps,
+  SortableOnDragOverEvent,
+} from "@progress/kendo-react-sortable";
+import {
   Upload,
   FileText,
   Image,
@@ -73,7 +78,210 @@ interface FileItem {
   uploadedAt: number;
   url?: string;
   isFavorite?: boolean;
+  order?: number;
 }
+
+// Custom Sortable Item UI Component
+const SortableFileItemUI = (
+  props: SortableItemUIProps & {
+    onToggleFavorite: (fileId: Id<"files">) => void;
+    onStartRename: (file: FileItem) => void;
+    onDownload: (file: FileItem) => void;
+    onDelete: (fileId: Id<"files">) => void;
+    renamingFile: Id<"files"> | null;
+    newFileName: string;
+    onNewFileNameChange: (value: string) => void;
+    onRenameFile: (fileId: Id<"files">) => void;
+    onCancelRename: () => void;
+  }
+) => {
+  const {
+    isActive,
+    style,
+    attributes,
+    dataItem,
+    forwardRef,
+    onToggleFavorite,
+    onStartRename,
+    onDownload,
+    onDelete,
+    renamingFile,
+    newFileName,
+    onNewFileNameChange,
+    onRenameFile,
+    onCancelRename,
+  } = props;
+  const file = dataItem as FileItem;
+
+  return (
+    <div ref={forwardRef} {...attributes} style={style} className="p-2">
+      <Card
+        className={`group hover:shadow-lg transition-shadow cursor-move select-none ${
+          isActive
+            ? "ring-2 ring-blue-500 shadow-xl bg-blue-50 dark:bg-blue-950/20"
+            : "hover:bg-muted/50"
+        }`}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <FileThumbnail
+                fileName={file.originalName}
+                mimeType={file.mimeType}
+                fileSize={file.fileSize}
+                thumbnailUrl={file.thumbnail}
+                fileUrl={file.url}
+                className="w-12 h-12 flex-shrink-0"
+                showFileType={false}
+              />
+              <div className="flex-1 min-w-0">
+                {renamingFile === file._id ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={newFileName}
+                      onChange={(e) => onNewFileNameChange(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          onRenameFile(file._id);
+                        } else if (e.key === "Escape") {
+                          onCancelRename();
+                        }
+                      }}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => onRenameFile(file._id)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onCancelRename}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h3
+                      className="font-medium truncate"
+                      title={file.originalName}
+                    >
+                      {file.originalName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {formatFileSize(file.fileSize)}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleFavorite(file._id)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Heart
+                className={`w-4 h-4 ${
+                  file.isFavorite ? "fill-red-500 text-red-500" : ""
+                }`}
+              />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Badge className={getCategoryColor(file.category)}>
+              {file.category}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {formatDateString(file.uploadedAt)}
+            </span>
+          </div>
+
+          {file.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {file.description}
+            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={() => onDownload(file)}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              View
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={() => onStartRename(file)}
+              disabled={renamingFile === file._id}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Rename
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={() => onDownload(file)}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(file._id)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Helper functions moved outside component for SortableFileItemUI access
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+const getCategoryColor = (category: string) => {
+  const colors: Record<string, string> = {
+    notes: "bg-blue-100 text-blue-800",
+    assignments: "bg-red-100 text-red-800",
+    presentations: "bg-purple-100 text-purple-800",
+    references: "bg-green-100 text-green-800",
+    lectures: "bg-orange-100 text-orange-800",
+    "study-materials": "bg-indigo-100 text-indigo-800",
+    other: "bg-gray-100 text-gray-800",
+  };
+  return colors[category] || colors.other;
+};
+
+const formatDateString = (timestamp: number) => {
+  return new Date(timestamp).toLocaleDateString();
+};
 
 export function FileHubEnhanced() {
   const { user } = useUser();
@@ -93,11 +301,16 @@ export function FileHubEnhanced() {
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
 
+  // File order management
+  const [fileOrder, setFileOrder] = useState<FileItem[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   // Convex hooks
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const storeFile = useMutation(api.files.storeFile);
   const deleteFile = useMutation(api.files.deleteFile);
   const toggleFavorite = useMutation(api.files.toggleFavorite);
+  const updateFileOrder = useMutation(api.files.updateFileOrder);
   const renameFile = useMutation(api.files.renameFile);
 
   // Get user ID from Clerk
@@ -114,23 +327,42 @@ export function FileHubEnhanced() {
       : "skip"
   ) as FileItem[] | undefined;
 
-  // Search files
-  const searchResults = useQuery(
-    api.files.searchFiles,
-    userId && searchQuery.length > 2
-      ? {
-          userId,
-          searchQuery,
-          category: selectedCategory !== "all" ? selectedCategory : undefined,
-        }
-      : "skip"
-  ) as FileItem[] | undefined;
+  const displayFiles = useMemo(() => {
+    return files?.filter((file) => {
+      if (!searchQuery) return true;
 
-  const displayFiles = searchQuery.length > 2 ? searchResults : files;
+      const query = searchQuery.toLowerCase();
+      return (
+        file.originalName.toLowerCase().includes(query) ||
+        file.category.toLowerCase().includes(query) ||
+        (file.description && file.description.toLowerCase().includes(query))
+      );
+    });
+  }, [files, searchQuery]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Initialize file order when files are loaded
+  useEffect(() => {
+    if (displayFiles && displayFiles.length > 0) {
+      // Sort files: first by order (if exists), then by uploadedAt desc
+      const sortedFiles = [...displayFiles].sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
+        if (a.order !== undefined) return -1;
+        if (b.order !== undefined) return 1;
+        return b.uploadedAt - a.uploadedAt;
+      });
+      setFileOrder(sortedFiles);
+      setHasUnsavedChanges(false);
+    } else if (displayFiles && displayFiles.length === 0) {
+      setFileOrder([]);
+      setHasUnsavedChanges(false);
+    }
+  }, [displayFiles]);
 
   // Safe date formatting function to prevent hydration issues
   const formatDateString = (timestamp: number) => {
@@ -179,7 +411,7 @@ export function FileHubEnhanced() {
         const uploadUrl = await generateUploadUrl();
 
         // Update progress for current file
-        setUploadProgress(Math.round(((i) / event.newState.length) * 100));
+        setUploadProgress(Math.round((i / event.newState.length) * 100));
 
         // Upload file to Convex storage
         const response = await fetch(uploadUrl, {
@@ -213,7 +445,6 @@ export function FileHubEnhanced() {
       setTimeout(() => {
         setShowUploadModal(false);
       }, 1500);
-
     } catch (error) {
       console.error("Error uploading files:", error);
       toast.error("Failed to upload files. Please try again.");
@@ -233,9 +464,10 @@ export function FileHubEnhanced() {
   const handleUploadProgress = (event: any) => {
     // Update progress based on Kendo's progress event
     if (event.newState && event.newState.length > 0) {
-      const totalProgress = event.newState.reduce((acc: number, file: any) => {
-        return acc + (file.progress || 0);
-      }, 0) / event.newState.length;
+      const totalProgress =
+        event.newState.reduce((acc: number, file: any) => {
+          return acc + (file.progress || 0);
+        }, 0) / event.newState.length;
       setUploadProgress(Math.round(totalProgress));
     }
   };
@@ -245,7 +477,10 @@ export function FileHubEnhanced() {
     console.log("Upload status changed:", event);
 
     // If all files are uploaded successfully, close modal
-    if (event.newState && event.newState.every((file: any) => file.status === 4)) {
+    if (
+      event.newState &&
+      event.newState.every((file: any) => file.status === 4)
+    ) {
       setTimeout(() => {
         setShowUploadModal(false);
         setIsUploading(false);
@@ -266,14 +501,6 @@ export function FileHubEnhanced() {
       return "document";
     if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
     return "other";
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
   const handleDeleteFile = async (fileId: Id<"files">) => {
@@ -316,6 +543,21 @@ export function FileHubEnhanced() {
     setNewFileName("");
   };
 
+  const handleSaveLayout = async () => {
+    if (!userId || !hasUnsavedChanges) return;
+
+    const fileOrders = fileOrder.map((file, index) => ({
+      fileId: file._id,
+      order: index,
+    }));
+
+    await executeWithLoading(async () => {
+      await updateFileOrder({ userId, fileOrders });
+      setHasUnsavedChanges(false);
+      toast.success("Layout saved successfully!");
+    }, "Saving layout...");
+  };
+
   const handleDownloadFile = async (file: FileItem) => {
     if (file.url) {
       window.open(file.url, "_blank");
@@ -338,19 +580,6 @@ export function FileHubEnhanced() {
       default:
         return <FileText className="w-8 h-8 text-gray-600" />;
     }
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      notes: "bg-blue-100 text-blue-800",
-      assignments: "bg-red-100 text-red-800",
-      presentations: "bg-purple-100 text-purple-800",
-      references: "bg-green-100 text-green-800",
-      lectures: "bg-orange-100 text-orange-800",
-      "study-materials": "bg-indigo-100 text-indigo-800",
-      other: "bg-gray-100 text-gray-800",
-    };
-    return colors[category] || colors.other;
   };
 
   if (!mounted) {
@@ -410,13 +639,14 @@ export function FileHubEnhanced() {
                       value={uploadProgress}
                       label={(props) => `${Math.round(props.value || 0)}%`}
                       progressStyle={{
-                        background: 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)',
-                        borderRadius: '4px'
+                        background:
+                          "linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)",
+                        borderRadius: "4px",
                       }}
                       style={{
-                        height: '10px',
-                        borderRadius: '5px',
-                        backgroundColor: '#f3f4f6'
+                        height: "10px",
+                        borderRadius: "5px",
+                        backgroundColor: "#f3f4f6",
                       }}
                       className="k-progressbar-custom"
                       animation={true}
@@ -430,14 +660,32 @@ export function FileHubEnhanced() {
                   withCredentials={false}
                   autoUpload={false}
                   saveHeaders={{
-                    'Content-Type': 'application/json'
+                    "Content-Type": "application/json",
                   }}
                   onAdd={handleFileAdd}
                   onRemove={handleFileRemove}
                   onProgress={handleUploadProgress}
                   onStatusChange={handleUploadStatusChange}
                   restrictions={{
-                    allowedExtensions: ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png', '.gif', '.mp4', '.avi', '.mov', '.zip', '.rar']
+                    allowedExtensions: [
+                      ".pdf",
+                      ".doc",
+                      ".docx",
+                      ".ppt",
+                      ".pptx",
+                      ".xls",
+                      ".xlsx",
+                      ".txt",
+                      ".jpg",
+                      ".jpeg",
+                      ".png",
+                      ".gif",
+                      ".mp4",
+                      ".avi",
+                      ".mov",
+                      ".zip",
+                      ".rar",
+                    ],
                   }}
                   className="k-upload-custom"
                 />
@@ -521,173 +769,81 @@ export function FileHubEnhanced() {
         </Card>
       </LockedFeature>
 
-      {/* Files Grid */}
-      {!displayFiles ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <CardSkeleton key={index} lines={3} />
-          ))}
+      {/* Save Layout Button */}
+      {hasUnsavedChanges && (
+        <div className="flex justify-center">
+          <Button
+            onClick={handleSaveLayout}
+            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+          >
+            Save Layout
+          </Button>
         </div>
-      ) : displayFiles.length === 0 ? (
-        <Card className="p-8">
-          <div className="text-center">
-            <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No files found</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery
-                ? "Try a different search term"
-                : "Upload your first file to get started"}
-            </p>
-            {!searchQuery && (
-              <Button
-                onClick={() => setShowUploadModal(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Files
-              </Button>
-            )}
+      )}
+
+      {/* Files Grid */}
+      {!fileOrder || fileOrder.length === 0 ? (
+        !displayFiles ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <CardSkeleton key={index} lines={3} />
+            ))}
           </div>
-        </Card>
+        ) : (
+          <Card className="p-8">
+            <div className="text-center">
+              <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No files found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery
+                  ? "Try a different search term"
+                  : "Upload your first file to get started"}
+              </p>
+              {!searchQuery && (
+                <Button
+                  onClick={() => setShowUploadModal(true)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Files
+                </Button>
+              )}
+            </div>
+          </Card>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayFiles.map((file) => (
-            <Card
-              key={file._id}
-              className="group hover:shadow-lg transition-shadow"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileThumbnail
-                      fileName={file.originalName}
-                      mimeType={file.mimeType}
-                      fileSize={file.fileSize}
-                      thumbnailUrl={file.thumbnail}
-                      fileUrl={file.url}
-                      className="w-12 h-12 flex-shrink-0"
-                      showFileType={false}
-                    />
-                    <div className="flex-1 min-w-0">
-                      {renamingFile === file._id ? (
-                        <div className="space-y-2">
-                          <Input
-                            value={newFileName}
-                            onChange={(e) => setNewFileName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleRenameFile(file._id);
-                              } else if (e.key === "Escape") {
-                                handleCancelRename();
-                              }
-                            }}
-                            className="h-8 text-sm"
-                            autoFocus
-                          />
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              onClick={() => handleRenameFile(file._id)}
-                              className="h-6 px-2 text-xs"
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCancelRename}
-                              className="h-6 px-2 text-xs"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <h3
-                            className="font-medium truncate"
-                            title={file.originalName}
-                          >
-                            {file.originalName}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {formatFileSize(file.fileSize)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleFavorite(file._id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        file.isFavorite ? "fill-red-500 text-red-500" : ""
-                      }`}
-                    />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge className={getCategoryColor(file.category)}>
-                    {file.category}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDateString(file.uploadedAt)}
-                  </span>
-                </div>
+          <Sortable
+            data={fileOrder}
+            idField="_id"
+            className="contents"
+            itemUI={(props) => (
+              <SortableFileItemUI
+                {...props}
+                onToggleFavorite={handleToggleFavorite}
+                onStartRename={handleStartRename}
+                onDownload={handleDownloadFile}
+                onDelete={handleDeleteFile}
+                renamingFile={renamingFile as Id<"files"> | null}
+                newFileName={newFileName}
+                onNewFileNameChange={setNewFileName}
+                onRenameFile={handleRenameFile}
+                onCancelRename={handleCancelRename}
+              />
+            )}
+            onDragOver={(e: SortableOnDragOverEvent) => {
+              const newOrder = [...fileOrder];
+              const oldIndex = e.prevIndex;
+              const newIndex = e.nextIndex;
 
-                {file.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {file.description}
-                  </p>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleDownloadFile(file)}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleStartRename(file)}
-                    disabled={renamingFile === file._id}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Rename
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleDownloadFile(file)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteFile(file._id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              if (oldIndex !== newIndex) {
+                const [draggedItem] = newOrder.splice(oldIndex, 1);
+                newOrder.splice(newIndex, 0, draggedItem);
+                setFileOrder(newOrder);
+                setHasUnsavedChanges(true);
+              }
+            }}
+          />
         </div>
       )}
     </div>
