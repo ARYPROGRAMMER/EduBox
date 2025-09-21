@@ -8,6 +8,7 @@ import { FeatureFlag } from "@/features/flag";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,6 +126,7 @@ export function ProfilePage() {
   const { user: convexUser, clerkUser } = useConvexUser();
   const { plan, planInfo, isLoading: planLoading } = useUserPlan();
   const router = useRouter();
+  const { setTheme } = useTheme();
   // controlled tab state so we can respond to URL hash fragments
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [isLoading, setIsLoading] = useState(false);
@@ -244,6 +246,9 @@ export function ProfilePage() {
           emailNotifications: formData.emailNotifications,
         },
       });
+
+      // Update global theme
+      setTheme(formData.theme || "system");
 
       setLastSaved(new Date());
     } catch (error) {
