@@ -192,7 +192,8 @@ graph TB
 
 ## 🎥 Demo Video
 
-[![Demo Video](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF)
+[![Demo Video Comprehensive Latest](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/td5qevnAoec?si=EHguDAe2pqFXV-FZ)
+[![Demo Video Old](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF)
 
 ---
 
@@ -369,7 +370,7 @@ NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_key
 GROQ_API_KEY=your_groq_key
 GOOGLE_API_KEY=your_google_api_key
-YOUTUBE_API_KEY=your_youtube_api_key
+
 
 # CopilotKit AI Chat
 NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY=your_copilotkit_license
@@ -386,6 +387,11 @@ NEXT_PUBLIC_SCHEMATIC_COMPONENT_ID=your_component_id
 ```
 
 ## 🏗️ Tech Stack Details
+
+### On Trial Services
+
+- **Nuclia RAG** - Retrieval-augmented generation (Trial) (Progress/Kendo)
+- **Kendo UI** - Enterprise UI components (licensed Trial)
 
 ### Frontend Framework
 
@@ -407,22 +413,17 @@ NEXT_PUBLIC_SCHEMATIC_COMPONENT_ID=your_component_id
 - **Clerk** - Complete authentication and user management
 - **Schematic** - Feature gating and billing management
 
-### Database & Backend
+### Database
 
 - **Convex** - Real-time database with serverless functions
-- **Nuclia Sync** - Custom backend service for document processing
 
-### AI & ML
+### Gen AI
 
-- **CopilotKit** - AI chat interface and actions
+- **CopilotKit with GROQ** - AI chat interface and actions
 - **Vercel AI SDK** - Unified AI API interface
-- **Google AI (Gemini)** - Large language models
-- **Groq** - Fast LLM inference
-- **Nuclia RAG** - Retrieval-augmented generation (Progress/Kendo)
 
 ### Additional Libraries
 
-- **Kendo UI** - Enterprise UI components (licensed)
 - **Tsparticles** - Interactive particle effects
 - **React Dropzone** - File upload handling
 - **React Markdown** - Markdown rendering
