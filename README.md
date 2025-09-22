@@ -29,11 +29,11 @@
       <a href="LICENSE" aria-label="License">
          <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License" />
       </a>
-      <a href="http://makeapullrequest.com" aria-label="PRs Welcome">
-         <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge" alt="PRs Welcome" />
+      <a href="https://www.youtube.com/embed/td5qevnAoec?si=EHguDAe2pqFXV-FZ" aria-label="Demo Video Comprehensive Latest">
+         <img src="https://img.shields.io/badge/Demo1-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video Comprehensive Latest" />
       </a>
-      <a href="CONTRIBUTING.md" aria-label="Contributions Welcome">
-         <img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=for-the-badge" alt="Contributions Welcome" />
+      <a href="https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF" aria-label="Demo Video Old">
+         <img src="https://img.shields.io/badge/Demo2-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video Old" />
       </a>
 
    </div>
@@ -119,18 +119,18 @@ graph TB
     UI --> COPILOT
     UI --> SEARCH
     UI --> ANALYTICS
-    
+
     CONVEX --> DB
     CONVEX --> FILES
-    
+
     CHAT --> COPILOT
     COPILOT --> GEMINI
     COPILOT --> GROQ
-    
+
     SEARCH --> NUCLIARAG
     NUCLIARAG --> KB
     NUCLIARAG --> SYNC
-    
+
     IMPORT --> PDFPROCESS
     DASH --> SCHEDULEOPT
 
@@ -148,7 +148,7 @@ graph TB
     classDef ai fill:#fff3e0
     classDef external fill:#fafafa
     classDef planned fill:#ffebee
-    
+
     class UI,DASH,CHAT,SEARCH,IMPORT frontend
     class CONVEX,AUTH,BILLING,ANALYTICS backend
     class DB,FILES,KB data
@@ -160,28 +160,33 @@ graph TB
 ### Architecture Overview
 
 **Frontend Layer:**
+
 - **Next.js 15** with App Router for modern React development
 - **TypeScript** for type safety and better DX
 - **Tailwind CSS + Shadcn/ui** for responsive, accessible UI
 - **Component Architecture:** Modular components for dashboard, chat, file management, data import/export
 
 **Backend Layer:**
+
 - **Convex** for real-time database and serverless functions
 - **Custom Nuclia Sync Service** for document processing and RAG
 - **Clerk** for authentication and user management
 - **Schematic** for billing and feature gating
 
 **AI & ML Layer:**
+
 - **CopilotKit** for AI chat interface and actions
 - **Google Gemini & Groq** for large language model inference via Vercel AI SDK
 - **Nuclia RAG** for retrieval-augmented generation and semantic search
 
 **Data Processing:**
+
 - **PDF Processing** for text extraction from uploaded documents
 - **Schedule Optimization** using AI for intelligent planning
 - **Data Import/Export** supporting multiple formats (CSV, JSON, PDF)
 
 **Planned Integrations:**
+
 - **Google Calendar** - Schedule synchronization (UI components ready)
 - **YouTube API** - Video content integration (API key configured)
 - **Microsoft Outlook** - Email and calendar integration
@@ -192,8 +197,8 @@ graph TB
 
 ## 🎥 Demo Video
 
-[![Demo Video Comprehensive Latest](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/td5qevnAoec?si=EHguDAe2pqFXV-FZ)
-[![Demo Video Old](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF)
+[![Demo Video Comprehensive Latest](https://img.shields.io/badge/Demo1-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/td5qevnAoec?si=EHguDAe2pqFXV-FZ)
+[![Demo Video Old](https://img.shields.io/badge/Demo2-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/embed/DkRr0VcmkHc?si=2MMlks4W9_mvXWRF)
 
 ---
 
@@ -202,36 +207,80 @@ graph TB
 <details>
 <summary>Click to expand media</summary>
 
-### Landing Page Video
+### Landing Page
 
 <video width="800" controls>
   <source src="screenshots/f.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
-### Dashboard Screenshot
+_Beautiful landing page with threejs component_
+![Landing Page](screenshots/landing.png)
 
-![Dashboard Screenshot](screenshots/f6.png)
+### 🏠 Dashboard & Overview
 
-### Global Semantic Search
+_Main dashboard showing all features and quick access_
+![Dashboard Overview](screenshots/dashboardoverview.png)
 
-![Global Semantic Search Screenshot](screenshots/f1.jpeg)
+_Academic progress tracking and analytics_
+![Analytics Dashboard](screenshots/analytics.png)
 
-### Locked Feature
+_User profile and settings_
+![Profile Page](screenshots/profile.png)
 
-![Locked Feature Screenshot](screenshots/f2.jpeg)
+### 🤖 AI Assistant & Chat
 
-### AI Study Assistant
+_AI assistant home interface_
+![AI Chat Home](screenshots/aichathome.png)
 
-![AI Study Assistant Screenshot](screenshots/f3.jpeg)
+_Conversation with AI assistant having Tools_
+![AI Chat Session](screenshots/aichatsession.png)
 
-### Kendo RAG Search
+_AI-powered study assistance_
+![AI Study Assistant](screenshots/studynew.png)
 
-![Kendo RAG Search Screenshot 1](screenshots/f4.jpeg)
+_AI content generation feature_
+![Content Generation](screenshots/contentgen.png)
 
-### Notifications and Planner Hub
+### 🔍 Search & RAG
 
-![Notifications and Planner Hub Screenshot 2](screenshots/f5.jpeg)
+_Retrieval-augmented generation Usage_
+![RAG Demo](screenshots/ragdemo.jpeg)
+
+_Knowledge base and document processing in NucliaDB_
+![RAG Database](screenshots/ragdb.png)
+
+### 📅 Planner & Scheduling
+
+_Intelligent planning and schedule management_
+![Planner Hub](screenshots/plannernew.png)
+
+### 📁 File Management
+
+_File organization and management interface_
+![File Hub 1](screenshots/filehub1.png)
+
+_Advanced file operations and search_
+![File Hub 2](screenshots/filehub2.jpeg)
+
+_Data import and export functionality_
+![Import/Export](screenshots/importexp.png)
+
+### ⚙️ Backend Service
+
+_Nuclia Document synchronization service_
+![Backend Sync](screenshots/backendsync.png)
+
+_Convex Real-time database management_
+![Convex Database](screenshots/convex.png)
+
+_Schematic Billing and feature gating system_
+![Schematic Billing](screenshots/schematic.png)
+
+### 🔒 Additional Features
+
+_Premium feature access control Component_
+![Locked Feature](screenshots/locked.jpeg)
 
 </details>
 
