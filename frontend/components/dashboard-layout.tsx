@@ -65,7 +65,7 @@ function hashFnv32(str: string) {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const { user } = useUser();
   const { user: convexUser } = useConvexUser();
 
@@ -210,7 +210,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   const activeGradient =
-    mounted && theme === "dark"
+    mounted && resolvedTheme === "dark"
       ? "from-slate-700/80 via-slate-800/80 to-slate-900/80"
       : "from-emerald-500/80 via-teal-600/80 to-green-600/80";
 
@@ -375,7 +375,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <div className="flex items-center gap-3 p-2 rounded-xl">
                     <UserButton
                       appearance={{
-                        baseTheme: theme === "dark" ? clerkDark : undefined,
+                        baseTheme:
+                          resolvedTheme === "dark" ? clerkDark : undefined,
                         elements: { avatarBox: "w-10 h-10" },
                       }}
                     />
@@ -550,7 +551,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <UserButton
                     appearance={{
-                      baseTheme: theme === "dark" ? clerkDark : undefined,
+                      baseTheme:
+                        resolvedTheme === "dark" ? clerkDark : undefined,
                       // smaller avatar when collapsed
                       elements: {
                         avatarBox: isSidebarOpen ? "w-10 h-10" : "w-8 h-8",
@@ -589,7 +591,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       setTheme(theme === "dark" ? "light" : "dark")
                     }
                   >
-                    {theme === "dark" ? (
+                    {resolvedTheme === "dark" ? (
                       <Sun className="w-4 h-4" />
                     ) : (
                       <Moon className="w-4 h-4" />

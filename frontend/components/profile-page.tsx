@@ -214,6 +214,13 @@ export function ProfilePage() {
   const handleAutoSave = async () => {
     if (!convexUser || isLoading) return;
 
+    // Check if profile was complete before saving
+    const wasProfileCompleteBefore =
+      convexUser.studentId &&
+      convexUser.institution &&
+      convexUser.major &&
+      convexUser.year;
+
     setIsLoading(true);
     try {
       // Update personal information
@@ -251,6 +258,17 @@ export function ProfilePage() {
       setTheme(formData.theme || "system");
 
       setLastSaved(new Date());
+
+      // Check if profile became complete after saving
+      const isProfileCompleteNow =
+        formData.studentId &&
+        formData.institution &&
+        formData.major &&
+        formData.year;
+      if (!wasProfileCompleteBefore && isProfileCompleteNow) {
+        // Profile was just completed, hard reload to refresh plan
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Auto-save failed:", error);
     } finally {
