@@ -54,6 +54,21 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// Sidebar context to share sidebar state with child components
+const SidebarContext = React.createContext<{
+  isSidebarOpen: boolean;
+}>({
+  isSidebarOpen: false,
+});
+
+export const useSidebarState = () => {
+  const context = React.useContext(SidebarContext);
+  if (!context) {
+    throw new Error("useSidebarState must be used within DashboardLayout");
+  }
+  return context;
+}
+
 // Shared hash helper (deterministic-ish quick hash for change detection)
 function hashFnv32(str: string) {
   let h = 0x811c9dc5;
@@ -217,7 +232,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const sidebarWidth = isSidebarOpen ? 280 : 80;
 
   return (
-    <ShaderBackground>
+    <SidebarContext.Provider value={{ isSidebarOpen }}>
+      <ShaderBackground>
       <div className="flex h-screen bg-gradient-to-br from-gray-50/70 to-gray-100/70 dark:from-gray-950/70 dark:to-gray-900/70 relative backdrop-blur-sm">
         {/* subtle spotlight gradient - changed to neutral */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-400/5 via-transparent to-transparent dark:from-gray-500/5" />
@@ -688,6 +704,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
     </ShaderBackground>
+    </SidebarContext.Provider>
   );
 }
 
