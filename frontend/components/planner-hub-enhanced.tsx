@@ -2360,14 +2360,15 @@ export function PlannerHubEnhanced() {
                       Manage your courses and academic schedule
                     </CardDescription>
                   </div>
-                  <Button
-                    onClick={() => setShowCourseDialog(true)}
-                    size="sm"
-                    className="flex items-center gap-2 w-full sm:w-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Course
-                  </Button>
+                  <CourseCreationDialog>
+                    <Button
+                      size="sm"
+                      className="flex items-center gap-2 w-full sm:w-auto"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Course
+                    </Button>
+                  </CourseCreationDialog>
                 </div>
               </CardHeader>
               <CardContent>
@@ -3008,7 +3009,12 @@ export function PlannerHubEnhanced() {
         studySessions={studySessions || []}
         onOptimizeSchedule={async (optimizedSchedule, scheduleId) => {
           try {
-            console.log("Applying optimized schedule:", optimizedSchedule, "with ID:", scheduleId);
+            console.log(
+              "Applying optimized schedule:",
+              optimizedSchedule,
+              "with ID:",
+              scheduleId
+            );
 
             if (convexUser && scheduleId) {
               const result = await applyOptimizedSchedule({
@@ -3022,12 +3028,19 @@ export function PlannerHubEnhanced() {
               // Close the modal
               setShowEnhancerModal(false);
             } else {
-              console.error("Missing convexUser or scheduleId:", { convexUser, scheduleId });
-              sonnerToast.error("Failed to apply optimized schedule. Missing user or schedule data.");
+              console.error("Missing convexUser or scheduleId:", {
+                convexUser,
+                scheduleId,
+              });
+              sonnerToast.error(
+                "Failed to apply optimized schedule. Missing user or schedule data."
+              );
             }
           } catch (error) {
             console.error("Failed to apply optimized schedule:", error);
-            sonnerToast.error("Failed to apply optimized schedule. Please try again.");
+            sonnerToast.error(
+              "Failed to apply optimized schedule. Please try again."
+            );
           }
         }}
       />

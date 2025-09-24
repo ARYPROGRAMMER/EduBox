@@ -37,13 +37,34 @@ import {
   List,
   Hash,
   CheckCircle,
-  Clock,
-  Plus,
 } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 
 // Theme support
 import { useTheme } from "next-themes";
+
+// Turndown for HTML to Markdown conversion
+import TurndownService from "turndown";
+
+// Initialize turndown service
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+});
+
+// Function to convert HTML to Markdown
+const htmlToMarkdown = (html: string) => {
+  if (!html || typeof html !== 'string') return '';
+  try {
+    return turndownService.turndown(html);
+  } catch (error) {
+    console.error('Error converting HTML to Markdown:', error);
+    return html; // Fallback to original HTML if conversion fails
+  }
+};
 
 // Custom dark mode styles for Kendo Editor
 const darkModeStyles = `
@@ -97,35 +118,11 @@ const {
   Bold,
   Italic,
   Underline,
-  Strikethrough,
-  Subscript,
-  Superscript,
-  ForeColor,
-  BackColor,
-  CleanFormatting,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
-  Indent,
-  Outdent,
   OrderedList,
   UnorderedList,
-  NumberedList,
-  BulletedList,
   InsertImage,
-  Unlink,
-  ViewHtml,
   InsertTable,
-  AddRowBefore,
-  AddRowAfter,
-  AddColumnBefore,
-  AddColumnAfter,
-  DeleteRow,
-  DeleteColumn,
-  DeleteTable,
-  MergeCells,
-  SplitCell,
+  ViewHtml,
   Undo,
   Redo,
 } = EditorTools;
@@ -159,7 +156,7 @@ export function AiContentGeneration() {
   ];
 
   const { user } = useConvexUser();
-  const { plan, planInfo } = useUserPlan();
+  const { planInfo } = useUserPlan();
   const todaysCount = useQuery(
     api.aiContent.countAiContentToday,
     user ? { userId: user.clerkId, refreshKey: lastSaveTime } : "skip"
@@ -231,30 +228,6 @@ export function AiContentGeneration() {
     };
   }, [user]);
 
-  const templates = [
-    {
-      id: "1",
-      name: "Research Paper",
-      description: "Complete research paper with citations and bibliography",
-      estimatedLength: "2000-3000 words",
-      timeEstimate: "10-15 minutes",
-    },
-    {
-      id: "2",
-      name: "Lab Report",
-      description: "Scientific lab report with methodology and analysis",
-      estimatedLength: "1000-1500 words",
-      timeEstimate: "8-12 minutes",
-    },
-    {
-      id: "3",
-      name: "Case Study Analysis",
-      description: "Business or academic case study with recommendations",
-      estimatedLength: "1500-2000 words",
-      timeEstimate: "10-15 minutes",
-    },
-  ];
-
   const getTypeIcon = (type: string) => {
     const typeData = contentTypes.find((t) => t.value === type);
     return typeData ? typeData.icon : FileText;
@@ -298,6 +271,43 @@ export function AiContentGeneration() {
   // local legacy toast removed; use Sonner `sonnerToast`
 
   const safeText = (t: any) => (t == null ? "" : String(t));
+
+  // Function to render content as HTML or Markdown
+  const renderContent = (content: string) => {
+    const normalized = normalizeMarkdown(content);
+    // Check if content contains HTML tags
+    if (/<[a-z][\s\S]*>/i.test(normalized)) {
+      // Render as HTML
+      return (
+        <div
+          className="prose prose-invert max-w-none"
+          dangerouslySetInnerHTML={{ __html: normalized }}
+        />
+      );
+    } else {
+      // Render as Markdown
+      return (
+        <div className="prose prose-invert max-w-none">
+          <ReactMarkdown>{normalized}</ReactMarkdown>
+        </div>
+      );
+    }
+  };
+
+  // Simple Markdown to HTML converter for editor
+  const markdownToHtml = (markdown: string) => {
+    if (!markdown) return "";
+    // Basic conversions
+    let html = markdown
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/`(.*?)`/g, "<code>$1</code>")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br>");
+    if (!html.startsWith("<p>")) html = "<p>" + html;
+    if (!html.endsWith("</p>")) html = html + "</p>";
+    return html;
+  };
 
   const handleCopy = async (text: string) => {
     const payload = safeText(text);
@@ -443,7 +453,12 @@ export function AiContentGeneration() {
 
   useEffect(() => {
     if (generatedContent) {
-      setEditedContent(generatedContent);
+      const normalized = normalizeMarkdown(generatedContent);
+      if (/<[a-z][\s\S]*>/i.test(normalized)) {
+        setEditedContent(normalized); // Already HTML
+      } else {
+        setEditedContent(markdownToHtml(normalized)); // Convert Markdown to HTML
+      }
       setIsContentSaved(false);
       setCurrentContentId(null);
     }
@@ -471,11 +486,9 @@ export function AiContentGeneration() {
           onValueChange={setActiveTab}
           className="space-y-4"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="generate">Generate</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="generate" className="space-y-4">
@@ -682,7 +695,7 @@ export function AiContentGeneration() {
                                       title: contentTitle,
                                       contentType: selectedType,
                                       prompt: requirements || topic,
-                                      generatedText: editedContent,
+                                      generatedText: htmlToMarkdown(editedContent),
                                       model: "gemini-1.5-flash",
                                       visibility: "private",
                                     });
@@ -751,7 +764,7 @@ export function AiContentGeneration() {
                                         title: contentTitle,
                                         contentType: selectedType,
                                         prompt: requirements || topic,
-                                        generatedText: editedContent,
+                                        generatedText: htmlToMarkdown(editedContent),
                                         model: "gemini-1.5-flash",
                                         visibility: "private",
                                       });
@@ -762,7 +775,7 @@ export function AiContentGeneration() {
                                         title: contentTitle,
                                         contentType: selectedType,
                                         prompt: requirements || topic,
-                                        generatedText: editedContent,
+                                        generatedText: htmlToMarkdown(editedContent),
                                         model: "gemini-1.5-flash",
                                         visibility: "private",
                                       });
@@ -776,7 +789,7 @@ export function AiContentGeneration() {
                                   setIsEditing(false);
 
                                   // Update the displayed content to show the saved version
-                                  setGeneratedContent(editedContent);
+                                  setGeneratedContent(htmlToMarkdown(editedContent));
 
                                   // Mark content as saved
                                   setIsContentSaved(true);
@@ -795,7 +808,13 @@ export function AiContentGeneration() {
                             <Button
                               variant="outline"
                               onClick={() => {
-                                setEditedContent(generatedContent);
+                                const normalized =
+                                  normalizeMarkdown(generatedContent);
+                                if (/<[a-z][\s\S]*>/i.test(normalized)) {
+                                  setEditedContent(normalized); // Already HTML
+                                } else {
+                                  setEditedContent(markdownToHtml(normalized)); // Convert Markdown to HTML
+                                }
                                 setIsEditing(false);
                               }}
                             >
@@ -805,11 +824,7 @@ export function AiContentGeneration() {
                         </div>
                       ) : (
                         <div className="rounded-lg p-4 max-h-96 overflow-y-auto">
-                          <div className="prose prose-invert max-w-none">
-                            <ReactMarkdown>
-                              {normalizeMarkdown(generatedContent)}
-                            </ReactMarkdown>
-                          </div>
+                          {renderContent(generatedContent)}
                         </div>
                       )}
 
@@ -885,40 +900,6 @@ export function AiContentGeneration() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="templates" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Content Templates</h3>
-              <Button variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Template
-              </Button>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {templates.map((template) => (
-                <Card
-                  key={template.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <CardTitle className="text-lg">{template.name}</CardTitle>
-                    <CardDescription>{template.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{template.estimatedLength}</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {template.timeEstimate}
-                      </span>
-                    </div>
-                    <Button className="w-full">Use Template</Button>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </TabsContent>
 
@@ -1027,145 +1008,14 @@ export function AiContentGeneration() {
                         </div>
                       </CardContent>
                       <CardContent>
-                        <div className="prose prose-invert max-w-none p-4">
-                          <ReactMarkdown>
-                            {normalizeMarkdown(generation.generatedText)}
-                          </ReactMarkdown>
+                        <div className="p-4">
+                          {renderContent(generation.generatedText)}
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })
               )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4">
-            <h3 className="text-lg font-semibold">Generation Settings</h3>
-
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Default Preferences</CardTitle>
-                  <CardDescription>
-                    Set your default preferences for content generation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Default Content Type</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select default type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {contentTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Default Tone</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select default tone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="academic">Academic</SelectItem>
-                          <SelectItem value="formal">Formal</SelectItem>
-                          <SelectItem value="casual">Casual</SelectItem>
-                          <SelectItem value="professional">
-                            Professional
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Default Word Count</Label>
-                    <Input placeholder="e.g., 1000" type="number" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Quality Settings</CardTitle>
-                  <CardDescription>
-                    Configure AI generation quality and style
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Generation Quality</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select quality level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fast">
-                          Fast (Lower quality, quicker)
-                        </SelectItem>
-                        <SelectItem value="balanced">
-                          Balanced (Good quality, moderate speed)
-                        </SelectItem>
-                        <SelectItem value="high">
-                          High Quality (Best quality, slower)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Citation Style</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select citation style" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="apa">APA</SelectItem>
-                        <SelectItem value="mla">MLA</SelectItem>
-                        <SelectItem value="chicago">Chicago</SelectItem>
-                        <SelectItem value="harvard">Harvard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Usage Statistics</CardTitle>
-                  <CardDescription>
-                    Monitor your AI content generation usage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold">23</div>
-                      <div className="text-sm text-muted-foreground">
-                        Remaining today
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">147</div>
-                      <div className="text-sm text-muted-foreground">
-                        Generated this month
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">4.6</div>
-                      <div className="text-sm text-muted-foreground">
-                        Average rating
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
