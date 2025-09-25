@@ -12,11 +12,11 @@ function YoutubeVideoForm() {
   const router = useRouter();
 
   const placeholders = [
-    "Paste a YouTube video URL to start learning...",
-    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "https://youtu.be/dQw4w9WgXcQ",
-    "Enter any educational YouTube video link",
-    "Transform videos into interactive learning experiences",
+    "Ask me anything about your studies...",
+    "How can I help with your academic questions?",
+    "Get instant answers about your academic life",
+    "What would you like to learn today?",
+    "Type your question here...",
   ];
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -26,36 +26,36 @@ function YoutubeVideoForm() {
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!url.trim()) {
-      toast.error("Please enter a YouTube video URL to continue.");
-      return;
-    }
+    // if (!url.trim()) {
+    //   toast.error("Please enter a YouTube video URL to continue.");
+    //   return;
+    // }
 
-    const isValidYouTubeUrl =
-      /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[\w-]+/.test(
-        url.trim()
-      );
+    // const isValidYouTubeUrl =
+    //   /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[\w-]+/.test(
+    //     url.trim()
+    //   );
 
-    if (!isValidYouTubeUrl) {
-      toast.error(
-        "Please enter a valid YouTube video URL. Supported formats include youtube.com, youtu.be, and YouTube Shorts."
-      );
-      return;
-    }
+    // if (!isValidYouTubeUrl) {
+    //   toast.error(
+    //     "Please enter a valid YouTube video URL. Supported formats include youtube.com, youtu.be, and YouTube Shorts."
+    //   );
+    //   return;
+    // }
 
     startTransition(async () => {
       try {
         const formData = new FormData();
-        formData.append("url", url.trim());
+        // formData.append("url", url.trim());
         const videoId = formData;
-        toast.success("Analyzing video — redirecting...");
+        toast.success("Analyzing input — redirecting...");
         router.push(`/dashboard/chat/${videoId}`);
       } catch (error) {
-        console.error("Error analyzing video:", error);
+        console.error("Error analyzing input:", error);
         const message =
           error instanceof Error
             ? error.message
-            : "Failed to analyze the video. Please try again with a different URL.";
+            : "Failed to analyze the input. Please try again.";
         toast.error(message);
       }
     });
