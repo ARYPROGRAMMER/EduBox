@@ -1,3 +1,5 @@
+**UPDATE: MOST OF THE SERVICES USED MIGHT HAVE STOPPED WORKING IN THE DEPLOYMENT DUE TO TRIAL LIMITS. PLEASE CHECK THE DEMO VIDEO TO SEE THE FUNCTIONALITY OR DEPLOY YOUR OWN INSTANCE.**
+
 ![EduBox](https://socialify.git.ci/ARYPROGRAMMER/EduBox/image?font=KoHo&forks=1&issues=1&language=1&name=1&owner=1&pattern=Floating+Cogs&stargazers=1&theme=Dark)
 
 ---
