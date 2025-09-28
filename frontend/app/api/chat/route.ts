@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { z } from "zod";
 
 // Initialize Gemini model
-const model = google("gemini-1.5-flash");
+const model = google("gemini-2.0-flash");
 
 // ---------------- helper utilities ----------------
 function randomInt(min: number, max: number) {
@@ -30,10 +30,17 @@ function genRandomTitle(prefix = "arya") {
     "project",
     "review",
   ];
-  const nouns = ["assignment", "task", "worksheet", "exercise", "project", "quiz"];
-  return `${prefix} - ${randomElement(adjectives)} ${randomElement(nouns)} ${Date.now()
-    .toString()
-    .slice(-4)}`;
+  const nouns = [
+    "assignment",
+    "task",
+    "worksheet",
+    "exercise",
+    "project",
+    "quiz",
+  ];
+  return `${prefix} - ${randomElement(adjectives)} ${randomElement(
+    nouns
+  )} ${Date.now().toString().slice(-4)}`;
 }
 
 // Normalize string-like values returned by model/tools
@@ -50,11 +57,16 @@ function normalizeStringArg(val: any): string | undefined {
     if (s) return String(s).trim();
   }
   if (typeof val === "object") {
-    if (typeof val.text === "string" && val.text.trim().length > 0) return val.text.trim();
-    if (typeof val.content === "string" && val.content.trim().length > 0) return val.content.trim();
+    if (typeof val.text === "string" && val.text.trim().length > 0)
+      return val.text.trim();
+    if (typeof val.content === "string" && val.content.trim().length > 0)
+      return val.content.trim();
     // try nested fields
     for (const key of ["description", "body", "value"]) {
-      if (typeof (val as any)[key] === "string" && (val as any)[key].trim().length > 0)
+      if (
+        typeof (val as any)[key] === "string" &&
+        (val as any)[key].trim().length > 0
+      )
         return (val as any)[key].trim();
     }
   }
@@ -71,7 +83,10 @@ function normalizeStringArg(val: any): string | undefined {
  * - "in 1 week", "in 2 weeks", "in 3 months"
  * Returns timestamp (ms) or null if cannot parse.
  */
-function parseDateToTimestamp(input: any, baseDate = new Date()): number | null {
+function parseDateToTimestamp(
+  input: any,
+  baseDate = new Date()
+): number | null {
   if (input === undefined || input === null) return null;
   if (typeof input === "number") return input;
   const s = String(input).trim();
@@ -148,7 +163,10 @@ function parseDateToTimestamp(input: any, baseDate = new Date()): number | null 
   return null;
 }
 
-function parseDateTimeToTimestamp(input: any, defaultTimeHours = 9): number | null {
+function parseDateTimeToTimestamp(
+  input: any,
+  defaultTimeHours = 9
+): number | null {
   if (input === undefined || input === null) return null;
   const s = String(input).trim();
 
@@ -216,12 +234,18 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
   const results: any[] = [];
 
   // Helper to find course ID by name or code
-  function findCourseId(courseNameOrCode: string | undefined): string | undefined {
+  function findCourseId(
+    courseNameOrCode: string | undefined
+  ): string | undefined {
     if (!courseNameOrCode || !context?.userContext?.courses) return undefined;
     const course = context.userContext.courses.find(
       (c: any) =>
-        String(c.name || "").toLowerCase().includes(String(courseNameOrCode).toLowerCase()) ||
-        String(c.code || "").toLowerCase().includes(String(courseNameOrCode).toLowerCase())
+        String(c.name || "")
+          .toLowerCase()
+          .includes(String(courseNameOrCode).toLowerCase()) ||
+        String(c.code || "")
+          .toLowerCase()
+          .includes(String(courseNameOrCode).toLowerCase())
     );
     return course?.id;
   }
@@ -258,15 +282,23 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
           // Course name: prefer provided; fallback to first active course from context; else "General"
           let courseName = normalizeStringArg(safeArgs.courseName);
-          if (!courseName && context?.userContext?.courses && context.userContext.courses.length > 0) {
-            courseName = context.userContext.courses[0].name || context.userContext.courses[0].code;
+          if (
+            !courseName &&
+            context?.userContext?.courses &&
+            context.userContext.courses.length > 0
+          ) {
+            courseName =
+              context.userContext.courses[0].name ||
+              context.userContext.courses[0].code;
           }
           if (!courseName) courseName = "General";
 
-          const priority = normalizeStringArg(safeArgs.priority)?.toLowerCase() || "medium";
+          const priority =
+            normalizeStringArg(safeArgs.priority)?.toLowerCase() || "medium";
 
           const estimatedHours =
-            safeArgs.estimatedHours !== undefined && !isNaN(Number(safeArgs.estimatedHours))
+            safeArgs.estimatedHours !== undefined &&
+            !isNaN(Number(safeArgs.estimatedHours))
               ? Number(safeArgs.estimatedHours)
               : randomInt(1, 4);
 
@@ -274,13 +306,15 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
           const descriptionFromModel = normalizeStringArg(safeArgs.description);
           const description =
             descriptionFromModel ||
-            (safeArgs.autoGenerate === false ? "" : `Auto-generated by arya: ${randomElement([
-              "short coding practice",
-              "read chapter and summarize",
-              "write a short report",
-              "solve exercise problems",
-              "implement small project",
-            ])}.`);
+            (safeArgs.autoGenerate === false
+              ? ""
+              : `Auto-generated by arya: ${randomElement([
+                  "short coding practice",
+                  "read chapter and summarize",
+                  "write a short report",
+                  "solve exercise problems",
+                  "implement small project",
+                ])}.`);
 
           // Due date parsing: prefer dueDate, dueInDays, dueInWeeks, dueInMonths
           let dueTimestamp = parseDateToTimestamp(safeArgs.dueDate);
@@ -291,7 +325,9 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
             dueTimestamp = parseDateToTimestamp(`${safeArgs.dueInWeeks} weeks`);
           }
           if (dueTimestamp === null && safeArgs.dueInMonths) {
-            dueTimestamp = parseDateToTimestamp(`${safeArgs.dueInMonths} months`);
+            dueTimestamp = parseDateToTimestamp(
+              `${safeArgs.dueInMonths} months`
+            );
           }
           if (dueTimestamp === null && typeof safeArgs.relative === "string") {
             dueTimestamp = parseDateToTimestamp(safeArgs.relative);
@@ -305,34 +341,47 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
           const courseId = findCourseId(courseName);
 
-          const assignmentId = await convex.mutation(api.assignments.createAssignment, {
-            userId,
-            courseId,
-            title,
-            description,
-            dueDate: dueTimestamp,
-            priority,
-            estimatedHours,
-          });
+          const assignmentId = await convex.mutation(
+            api.assignments.createAssignment,
+            {
+              userId,
+              courseId,
+              title,
+              description,
+              dueDate: dueTimestamp,
+              priority,
+              estimatedHours,
+            }
+          );
 
           results.push({
             tool: "createAssignment",
             success: true,
-            data: { assignmentId, title, courseName, priority, dueDate: dueTimestamp, description },
+            data: {
+              assignmentId,
+              title,
+              courseName,
+              priority,
+              dueDate: dueTimestamp,
+              description,
+            },
           });
           break;
         }
 
         case "createEvent": {
           const safeArgs = typeof args === "object" && args ? args : {};
-          const title = normalizeStringArg(safeArgs.title) || genRandomTitle("arya event");
+          const title =
+            normalizeStringArg(safeArgs.title) || genRandomTitle("arya event");
           const type = normalizeStringArg(safeArgs.type) || "personal";
-          const description = normalizeStringArg(safeArgs.description) || `Auto ${type} event by arya: ${randomElement([
-            "Bring notes",
-            "Group discussion",
-            "Review session",
-            "Quick check-in",
-          ])}`;
+          const description =
+            normalizeStringArg(safeArgs.description) ||
+            `Auto ${type} event by arya: ${randomElement([
+              "Bring notes",
+              "Group discussion",
+              "Review session",
+              "Quick check-in",
+            ])}`;
 
           let startTime = parseDateTimeToTimestamp(safeArgs.startDateTime, 10);
           let endTime = parseDateTimeToTimestamp(safeArgs.endDateTime, 11);
@@ -349,7 +398,9 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
           const location = normalizeStringArg(safeArgs.location) || "TBD";
 
-          const courseId = findCourseId(normalizeStringArg(safeArgs.courseName));
+          const courseId = findCourseId(
+            normalizeStringArg(safeArgs.courseName)
+          );
 
           const eventId = await convex.mutation(api.events.createEvent, {
             userId,
@@ -365,15 +416,27 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
           results.push({
             tool: "createEvent",
             success: true,
-            data: { eventId, title, type, startTime, endTime, location, description },
+            data: {
+              eventId,
+              title,
+              type,
+              startTime,
+              endTime,
+              location,
+              description,
+            },
           });
           break;
         }
 
         case "createStudySession": {
           const safeArgs = typeof args === "object" && args ? args : {};
-          const title = normalizeStringArg(safeArgs.title) || genRandomTitle("arya session");
-          const subject = normalizeStringArg(safeArgs.subject) || (context?.userContext?.courses?.[0]?.name ?? "General");
+          const title =
+            normalizeStringArg(safeArgs.title) ||
+            genRandomTitle("arya session");
+          const subject =
+            normalizeStringArg(safeArgs.subject) ||
+            (context?.userContext?.courses?.[0]?.name ?? "General");
 
           let startTime = parseDateTimeToTimestamp(safeArgs.startDateTime, 18);
           if (!startTime) {
@@ -384,24 +447,30 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
           }
 
           const plannedDuration =
-            safeArgs.plannedDuration !== undefined ? Number(safeArgs.plannedDuration) : 60;
+            safeArgs.plannedDuration !== undefined
+              ? Number(safeArgs.plannedDuration)
+              : 60;
 
-          const studyMethod = normalizeStringArg(safeArgs.studyMethod) || "pomodoro";
+          const studyMethod =
+            normalizeStringArg(safeArgs.studyMethod) || "pomodoro";
           const location = normalizeStringArg(safeArgs.location) || "Library";
 
           const courseId = findCourseId(subject);
 
-          const sessionId = await convex.mutation(api.analytics.createStudySession, {
-            userId,
-            courseId,
-            title,
-            subject,
-            startTime,
-            plannedDuration,
-            sessionType: "planned",
-            studyMethod,
-            location,
-          });
+          const sessionId = await convex.mutation(
+            api.analytics.createStudySession,
+            {
+              userId,
+              courseId,
+              title,
+              subject,
+              startTime,
+              plannedDuration,
+              sessionType: "planned",
+              studyMethod,
+              location,
+            }
+          );
 
           results.push({
             tool: "createStudySession",
@@ -413,12 +482,21 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
         case "createCourse": {
           const safeArgs = typeof args === "object" && args ? args : {};
-          const courseCode = normalizeStringArg(safeArgs.courseCode) || `CSE${randomInt(100, 499)}`;
-          const courseName = normalizeStringArg(safeArgs.courseName) || `Course ${randomInt(1, 999)}`;
+          const courseCode =
+            normalizeStringArg(safeArgs.courseCode) ||
+            `CSE${randomInt(100, 499)}`;
+          const courseName =
+            normalizeStringArg(safeArgs.courseName) ||
+            `Course ${randomInt(1, 999)}`;
           const instructor = normalizeStringArg(safeArgs.instructor) || "Staff";
           const semester = normalizeStringArg(safeArgs.semester) || "Fall 2025";
-          const credits = safeArgs.credits !== undefined ? Number(safeArgs.credits) : randomInt(2, 4);
-          const schedule = Array.isArray(safeArgs.schedule) ? safeArgs.schedule : [];
+          const credits =
+            safeArgs.credits !== undefined
+              ? Number(safeArgs.credits)
+              : randomInt(2, 4);
+          const schedule = Array.isArray(safeArgs.schedule)
+            ? safeArgs.schedule
+            : [];
 
           const courseId = await convex.mutation(api.courses.createCourse, {
             userId,
@@ -440,9 +518,17 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
 
         case "createCampusEvent": {
           const safeArgs = typeof args === "object" && args ? args : {};
-          const title = normalizeStringArg(safeArgs.title) || genRandomTitle("campus");
+          const title =
+            normalizeStringArg(safeArgs.title) || genRandomTitle("campus");
           const category = normalizeStringArg(safeArgs.category) || "social";
-          const description = normalizeStringArg(safeArgs.description) || `Campus event by arya: ${randomElement(["Meet & greet", "Sports", "Club meetup", "Workshop"])}`;
+          const description =
+            normalizeStringArg(safeArgs.description) ||
+            `Campus event by arya: ${randomElement([
+              "Meet & greet",
+              "Sports",
+              "Club meetup",
+              "Workshop",
+            ])}`;
 
           let startTime = parseDateTimeToTimestamp(safeArgs.startDateTime, 12);
           let endTime = parseDateTimeToTimestamp(safeArgs.endDateTime, 14);
@@ -456,19 +542,24 @@ async function executeTools(toolCalls: any[], userId: string, context: any) {
           }
 
           const location = normalizeStringArg(safeArgs.location) || "Main Quad";
-          const organizer = normalizeStringArg(safeArgs.organizer) || "Student Council";
-          const capacity = safeArgs.capacity !== undefined ? Number(safeArgs.capacity) : 100;
+          const organizer =
+            normalizeStringArg(safeArgs.organizer) || "Student Council";
+          const capacity =
+            safeArgs.capacity !== undefined ? Number(safeArgs.capacity) : 100;
 
-          const eventId = await convex.mutation(api.campusLife.createCampusEvent, {
-            title,
-            category,
-            description,
-            startTime: startTime!,
-            endTime: endTime!,
-            location,
-            organizer,
-            capacity,
-          });
+          const eventId = await convex.mutation(
+            api.campusLife.createCampusEvent,
+            {
+              title,
+              category,
+              description,
+              startTime: startTime!,
+              endTime: endTime!,
+              location,
+              organizer,
+              capacity,
+            }
+          );
 
           results.push({
             tool: "createCampusEvent",
@@ -599,7 +690,10 @@ export async function POST(request: NextRequest) {
     const { message, sessionId, context, attachments } = body;
 
     if (!message || !sessionId) {
-      return NextResponse.json({ error: "Message and sessionId are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Message and sessionId are required" },
+        { status: 400 }
+      );
     }
 
     // Build full system prompt
@@ -789,8 +883,13 @@ Current time: ${new Date().toLocaleString()}`;
     ];
 
     if (attachments && attachments.length > 0) {
-      const attachmentContext = attachments.map((att) => `${att.type}: ${att.content}`).join("\n");
-      messages.push({ role: "system" as const, content: `Additional context from attachments:\n${attachmentContext}` });
+      const attachmentContext = attachments
+        .map((att) => `${att.type}: ${att.content}`)
+        .join("\n");
+      messages.push({
+        role: "system" as const,
+        content: `Additional context from attachments:\n${attachmentContext}`,
+      });
     }
 
     const isStreaming = request.headers.get("accept")?.includes("text/stream");
@@ -843,7 +942,10 @@ Current time: ${new Date().toLocaleString()}`;
               const { done, value } = await reader.read();
               lastReadAt = Date.now();
               if (done) break;
-              const chunkText = typeof value === "string" ? value : new TextDecoder().decode(value);
+              const chunkText =
+                typeof value === "string"
+                  ? value
+                  : new TextDecoder().decode(value);
               assembled += chunkText;
               controller.enqueue(encoder.encode(chunkText));
             }
@@ -851,13 +953,19 @@ Current time: ${new Date().toLocaleString()}`;
             // After model stream ends: run tools (if any), then append action summary to client stream
             let toolResults: any[] = [];
             try {
-              const called = await extractToolCallsPossiblyPromise(result.toolCalls);
+              const called = await extractToolCallsPossiblyPromise(
+                result.toolCalls
+              );
               if (called.length > 0) {
                 toolResults = await executeTools(called, userId, context);
               }
             } catch (toolErr) {
               console.error("Tool execution error in streaming:", toolErr);
-              toolResults.push({ tool: "unknown", success: false, error: String(toolErr) });
+              toolResults.push({
+                tool: "unknown",
+                success: false,
+                error: String(toolErr),
+              });
             }
 
             // Build action summary text
@@ -868,17 +976,25 @@ Current time: ${new Date().toLocaleString()}`;
                 toolResults
                   .map((r) =>
                     r.success
-                      ? `✓ Created ${String(r.tool || "").replace("create", "").trim()}: ${
-                          r.data?.title || r.data?.courseName || r.data?.courseCode || r.data?.eventId || ""
+                      ? `✓ Created ${String(r.tool || "")
+                          .replace("create", "")
+                          .trim()}: ${
+                          r.data?.title ||
+                          r.data?.courseName ||
+                          r.data?.courseCode ||
+                          r.data?.eventId ||
+                          ""
                         }`
-                      : `✗ Failed to create ${r.tool || "unknown"}${r.error ? `: ${r.error}` : ""}`
+                      : `✗ Failed to create ${r.tool || "unknown"}${
+                          r.error ? `: ${r.error}` : ""
+                        }`
                   )
                   .join("\n");
             }
 
             if (actionSummary) {
               const summaryChunk = `\n\n${actionSummary}\n`;
-       
+
               if (!assembled.includes(actionSummary)) {
                 assembled += summaryChunk;
                 controller.enqueue(encoder.encode(summaryChunk));
@@ -888,7 +1004,6 @@ Current time: ${new Date().toLocaleString()}`;
             controller.close();
             clearInterval(inactivityTimer);
 
- 
             try {
               const convex = getConvexClient();
               await convex.mutation(api.chatMessages.addMessage, {
@@ -898,10 +1013,11 @@ Current time: ${new Date().toLocaleString()}`;
                 role: "assistant",
                 messageIndex: 0,
               });
-
-   
             } catch (persistErr) {
-              console.error("Failed to persist streamed assistant message:", persistErr);
+              console.error(
+                "Failed to persist streamed assistant message:",
+                persistErr
+              );
             }
           } catch (streamErr) {
             console.error("Stream read error:", streamErr);
@@ -921,7 +1037,6 @@ Current time: ${new Date().toLocaleString()}`;
         headers: { "Content-Type": "text/stream; charset=utf-8" },
       });
     } else {
-    
       const result = await generateText({
         model,
         messages,
@@ -946,10 +1061,18 @@ Current time: ${new Date().toLocaleString()}`;
         const actionSummary = toolResults
           .map((r) =>
             r.success
-              ? `✓ Created ${String(r.tool || "").replace("create", "").trim()}: ${
-                  r.data?.title || r.data?.courseName || r.data?.courseCode || r.data?.eventId || ""
+              ? `✓ Created ${String(r.tool || "")
+                  .replace("create", "")
+                  .trim()}: ${
+                  r.data?.title ||
+                  r.data?.courseName ||
+                  r.data?.courseCode ||
+                  r.data?.eventId ||
+                  ""
                 }`
-              : `✗ Failed to create ${r.tool || "unknown"}${r.error ? `: ${r.error}` : ""}`
+              : `✗ Failed to create ${r.tool || "unknown"}${
+                  r.error ? `: ${r.error}` : ""
+                }`
           )
           .join("\n");
 
@@ -967,7 +1090,7 @@ Current time: ${new Date().toLocaleString()}`;
         actions: toolResults.length > 0 ? toolResults : undefined,
         metadata: {
           tokensUsed: result.usage?.totalTokens || 0,
-          model: "gemini-1.5-flash",
+          model: "gemini-2.0-flash",
           timestamp: Date.now(),
         },
       };
@@ -990,21 +1113,30 @@ Current time: ${new Date().toLocaleString()}`;
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(
-      { error: "Internal server error", message: "Failed to process chat request" },
+      {
+        error: "Internal server error",
+        message: "Failed to process chat request",
+      },
       { status: 500 }
     );
   }
 }
 
-
-async function generateSuggestions(userMessage: string, aiResponse: string): Promise<string[]> {
+async function generateSuggestions(
+  userMessage: string,
+  aiResponse: string
+): Promise<string[]> {
   try {
     const prompt = `You are a helpful assistant that suggests up to 3 short, actionable follow-up queries or actions a student can take after a conversation. Return the suggestions as a JSON array of strings only (for example: ["Show my calendar for today","Find free time for studying"]).\n\nUser message: ${userMessage}\nAssistant response: ${aiResponse}\n\nGuidelines: Keep suggestions short (max 6 words), focused on academic actions (schedules, assignments, files, study help), and return 1-3 unique suggestions.`;
 
     const result = await generateText({
       model,
       messages: [
-        { role: "system" as const, content: "You generate concise follow-up suggestion lists as JSON arrays." },
+        {
+          role: "system" as const,
+          content:
+            "You generate concise follow-up suggestion lists as JSON arrays.",
+        },
         { role: "user" as const, content: prompt },
       ],
       temperature: 0.35,
@@ -1017,7 +1149,10 @@ async function generateSuggestions(userMessage: string, aiResponse: string): Pro
       if (!text) return null;
       let s = text.trim();
       s = s.replace(/```[\s\S]*?```/g, (m) => m.replace(/```/g, ""));
-      s = s.replace(/^\s*```?\w*\s*/i, "").replace(/```\s*$/i, "").trim();
+      s = s
+        .replace(/^\s*```?\w*\s*/i, "")
+        .replace(/```\s*$/i, "")
+        .trim();
 
       try {
         const p = JSON.parse(s);
@@ -1049,7 +1184,10 @@ async function generateSuggestions(userMessage: string, aiResponse: string): Pro
     const parsedArray = extractArray(raw);
     let suggestions: string[] = [];
     if (parsedArray) {
-      suggestions = parsedArray.slice(0, 3).map((s) => s.trim()).filter(Boolean);
+      suggestions = parsedArray
+        .slice(0, 3)
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else {
       suggestions = raw
         .split(/\r?\n/)

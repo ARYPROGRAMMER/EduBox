@@ -48,20 +48,20 @@ import TurndownService from "turndown";
 
 // Initialize turndown service
 const turndownService = new TurndownService({
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced',
-  bulletListMarker: '-',
-  emDelimiter: '*',
-  strongDelimiter: '**',
+  headingStyle: "atx",
+  codeBlockStyle: "fenced",
+  bulletListMarker: "-",
+  emDelimiter: "*",
+  strongDelimiter: "**",
 });
 
 // Function to convert HTML to Markdown
 const htmlToMarkdown = (html: string) => {
-  if (!html || typeof html !== 'string') return '';
+  if (!html || typeof html !== "string") return "";
   try {
     return turndownService.turndown(html);
   } catch (error) {
-    console.error('Error converting HTML to Markdown:', error);
+    console.error("Error converting HTML to Markdown:", error);
     return html; // Fallback to original HTML if conversion fails
   }
 };
@@ -695,8 +695,9 @@ export function AiContentGeneration() {
                                       title: contentTitle,
                                       contentType: selectedType,
                                       prompt: requirements || topic,
-                                      generatedText: htmlToMarkdown(editedContent),
-                                      model: "gemini-1.5-flash",
+                                      generatedText:
+                                        htmlToMarkdown(editedContent),
+                                      model: "gemini-2.0-flash",
                                       visibility: "private",
                                     });
                                   } else {
@@ -764,8 +765,9 @@ export function AiContentGeneration() {
                                         title: contentTitle,
                                         contentType: selectedType,
                                         prompt: requirements || topic,
-                                        generatedText: htmlToMarkdown(editedContent),
-                                        model: "gemini-1.5-flash",
+                                        generatedText:
+                                          htmlToMarkdown(editedContent),
+                                        model: "gemini-2.0-flash",
                                         visibility: "private",
                                       });
                                       setCurrentContentId(existingContentId);
@@ -775,8 +777,9 @@ export function AiContentGeneration() {
                                         title: contentTitle,
                                         contentType: selectedType,
                                         prompt: requirements || topic,
-                                        generatedText: htmlToMarkdown(editedContent),
-                                        model: "gemini-1.5-flash",
+                                        generatedText:
+                                          htmlToMarkdown(editedContent),
+                                        model: "gemini-2.0-flash",
                                         visibility: "private",
                                       });
                                       setCurrentContentId(newId);
@@ -789,7 +792,9 @@ export function AiContentGeneration() {
                                   setIsEditing(false);
 
                                   // Update the displayed content to show the saved version
-                                  setGeneratedContent(htmlToMarkdown(editedContent));
+                                  setGeneratedContent(
+                                    htmlToMarkdown(editedContent)
+                                  );
 
                                   // Mark content as saved
                                   setIsContentSaved(true);

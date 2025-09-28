@@ -6,7 +6,7 @@ import { getConvexClient } from "@/lib/convex";
 import { auth } from "@clerk/nextjs/server";
 
 // Initialize Gemini model (match project's existing pattern)
-const model = google("gemini-1.5-flash");
+const model = google("gemini-2.0-flash");
 
 type ReqBody = {
   prompt: string;
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
                 contentType: contentType ?? "ai_content",
                 prompt,
                 generatedText: assembled,
-                model: "gemini-1.5-flash",
+                model: "gemini-2.0-flash",
                 tokens: undefined,
                 usage: undefined,
                 metadata: options
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
               //   contentType: contentType ?? 'ai_content',
               //   prompt,
               //   generatedText: assembled,
-              //   model: "gemini-1.5-flash",
+              //   model: "gemini-2.0-flash",
               //   metadata: options ? { rawOptions: JSON.stringify(options) } : undefined,
               //   visibility: "private",
               // });
